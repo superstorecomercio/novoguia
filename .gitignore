@@ -33,9 +33,19 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Migration config (contains sensitive credentials)
+scripts/migrate/config.ts
+
+# Arquivos CSV exportados (podem conter dados sensíveis)
+data/*.csv
+data/*.json
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Windows reserved filename
+nul

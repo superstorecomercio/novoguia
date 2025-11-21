@@ -1,0 +1,16 @@
+{
+  "name": "migrate-scripts",
+  "version": "1.0.0",
+  "description": "Scripts de migração de dados",
+  "scripts": {
+    "migrate:cidades": "tsx scripts/migrate/01_migrate_cidades.ts",
+    "migrate:cidades:dry": "tsx scripts/migrate/01_migrate_cidades.ts --dry-run",
+    "migrate:empresas": "tsx scripts/migrate/02_migrate_empresas.ts",
+    "migrate:empresas:dry": "tsx scripts/migrate/02_migrate_empresas.ts --dry-run"
+  },
+  "dependencies": {
+    "mssql": "^10.0.0",
+    "tsx": "^4.7.0"
+  }
+}
+

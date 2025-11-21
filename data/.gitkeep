@@ -1,0 +1,3 @@
+# Esta pasta contém arquivos CSV exportados do SQL Server
+# Os arquivos CSV não são commitados (estão no .gitignore)
+
