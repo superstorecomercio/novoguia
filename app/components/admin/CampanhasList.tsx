@@ -16,13 +16,17 @@ interface Campanha {
   data_fim?: string;
   valor: number;
   ativo: boolean;
+  participa_cotacao?: boolean;
+  limite_orcamentos_mes?: number;
 }
 
 interface Hotsite {
   id: string;
   nome_exibicao: string;
-  cidade: string;
-  estado: string;
+  cidade?: {
+    nome: string;
+    estado: string;
+  } | null;
 }
 
 interface Plano {
@@ -55,7 +59,9 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
     plano_id: '',
     data_inicio: new Date().toISOString().split('T')[0],
     data_fim: '',
-    valor_total: 0,
+    valor_total: 0, // Será convertido para valor_mensal no backend
+    participa_cotacao: true,
+    limite_orcamentos_mes: null as number | null,
   });
 
   // Extrair planos únicos
@@ -73,8 +79,8 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
     const searchLower = hotsiteSearchTerm.toLowerCase();
     return hotsites.filter((hotsite) => {
       const nome = (hotsite.nome_exibicao || '').toLowerCase();
-      const cidade = (hotsite.cidade || '').toLowerCase();
-      const estado = (hotsite.estado || '').toLowerCase();
+      const cidade = (hotsite.cidade?.nome || '').toLowerCase();
+      const estado = (hotsite.cidade?.estado || '').toLowerCase();
       return nome.includes(searchLower) || cidade.includes(searchLower) || estado.includes(searchLower);
     }).slice(0, 100); // Limitar a 100 resultados
   }, [hotsites, hotsiteSearchTerm]);
@@ -173,6 +179,8 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
       valor: campanha.valor,
       ativo: campanha.ativo,
       tipoempresa: campanha.tipoempresa || 'Empresa de Mudança',
+      participa_cotacao: campanha.participa_cotacao !== false,
+      limite_orcamentos_mes: campanha.limite_orcamentos_mes || '',
     });
   };
 
@@ -520,7 +528,7 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                               </div>
                               <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                                  Valor (R$)
+                                  Valor Mensal (R$)
                                 </label>
                                 <input
                                   type="number"
@@ -546,6 +554,42 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                                   <option value="ativa">Ativa</option>
                                   <option value="inativa">Inativa</option>
                                 </select>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                              <div>
+                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={editData.participa_cotacao !== false}
+                                    onChange={(e) =>
+                                      setEditData({ ...editData, participa_cotacao: e.target.checked })
+                                    }
+                                    className="w-4 h-4 text-[#0073e6] focus:ring-[#0073e6] border-gray-300 rounded"
+                                  />
+                                  <span className="font-medium">Participa de Cotação</span>
+                                </label>
+                                <p className="text-xs text-gray-500 ml-6 mt-1">
+                                  Se marcado, esta campanha receberá orçamentos automaticamente
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Limite de Orçamentos/Mês
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  placeholder="Ilimitado"
+                                  value={editData.limite_orcamentos_mes}
+                                  onChange={(e) =>
+                                    setEditData({ ...editData, limite_orcamentos_mes: e.target.value ? parseInt(e.target.value) : '' })
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Deixe vazio para ilimitado
+                                </p>
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -717,7 +761,7 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                   <option value="">Selecione um hotsite</option>
                   {hotsitesFiltrados.map((hotsite) => (
                     <option key={hotsite.id} value={hotsite.id}>
-                      {hotsite.nome_exibicao} - {hotsite.cidade}/{hotsite.estado}
+                      {hotsite.nome_exibicao} - {hotsite.cidade?.nome || 'Sem cidade'} - {hotsite.cidade?.estado || ''}
                     </option>
                   ))}
                 </select>
@@ -773,7 +817,7 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Valor Total (R$)
+                  Valor Mensal (R$)
                 </label>
                 <input
                   type="number"
@@ -782,6 +826,44 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                   onChange={(e) => setNewCampanhaData({ ...newCampanhaData, valor_total: parseFloat(e.target.value) })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6]"
                 />
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Configurações de Cotação</h3>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={newCampanhaData.participa_cotacao}
+                        onChange={(e) => setNewCampanhaData({ ...newCampanhaData, participa_cotacao: e.target.checked })}
+                        className="w-4 h-4 text-[#0073e6] focus:ring-[#0073e6] border-gray-300 rounded"
+                      />
+                      <span className="font-medium">Participa de Cotação</span>
+                    </label>
+                    <p className="text-xs text-gray-500 ml-6 mt-1">
+                      Se marcado, esta campanha receberá orçamentos automaticamente
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Limite de Orçamentos/Mês
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Ilimitado"
+                      value={newCampanhaData.limite_orcamentos_mes || ''}
+                      onChange={(e) => setNewCampanhaData({ ...newCampanhaData, limite_orcamentos_mes: e.target.value ? parseInt(e.target.value) : null })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6]"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Deixe vazio para ilimitado. Controla quantos orçamentos esta campanha pode receber por mês.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -796,6 +878,8 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                     data_inicio: new Date().toISOString().split('T')[0],
                     data_fim: '',
                     valor_total: 0,
+                    participa_cotacao: true,
+                    limite_orcamentos_mes: null,
                   });
                 }}
                 className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"

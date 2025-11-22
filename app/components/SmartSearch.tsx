@@ -100,9 +100,9 @@ export function SmartSearch() {
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="text-center space-y-8">
-        <div className="space-y-4">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground tracking-tight leading-tight">
+      <div className="text-center space-y-4">
+        <div className="space-y-3">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-foreground tracking-tight leading-tight">
             Calcule o preço da sua mudança{" "}
             <span className="text-primary">em segundos</span>
           </h1>
@@ -153,7 +153,7 @@ export function SmartSearch() {
 
       {/* Sugestões Rápidas */}
       {!resultado && (
-        <div className="space-y-6 max-w-5xl mx-auto">
+        <div className="space-y-4 max-w-5xl mx-auto">
           <p className="text-base font-medium text-muted-foreground text-center">
             Escolha uma opção ou digite sua pergunta acima
           </p>

@@ -30,16 +30,23 @@ export interface City {
 }
 
 // ============================================
-// PLANOS DE PUBLICIDADE
+// PLANOS (antiga: planos_publicidade)
 // ============================================
 
-export interface PublicidadePlanoType {
+export interface Plano {
   id: string;
   nome: PublicidadePlano;
   descricao?: string;
   ordem: number; // Para ordenação (menor número = maior prioridade)
+  preco: number; // Preço do plano
+  periodicidade: string; // 'mensal' | 'trimestral' | 'anual'
   createdAt?: string;
 }
+
+/**
+ * @deprecated Use Plano ao invés de PublicidadePlanoType
+ */
+export interface PublicidadePlanoType extends Plano {}
 
 export interface EmpresaPlano {
   id: string;
@@ -109,6 +116,7 @@ export interface Hotsite {
   cidade?: string; // Nome da cidade (para exibição)
   estado?: string;
   tipoempresa?: string; // Tipo da empresa: "Empresa de Mudança", "Carretos" ou "Guarda-Móveis"
+  verificado?: boolean; // Indica se a empresa foi verificada pelo administrador
   
   // Imagens
   logoUrl?: string;
@@ -154,12 +162,14 @@ export interface Orcamento {
   // Destino
   estadoDestino?: string;
   cidadeDestino: string;
+  cidadeId?: string; // FK para cidades (baseado em estado_destino/cidade_destino)
   enderecoDestino?: string;
   bairroDestino?: string;
   tipoDestino?: PropertyType;
   
   // Detalhes do Serviço
-  descricao?: string;
+  descricao?: string; // Também serve como campo "detalhes"
+  detalhes?: string; // Alias para descricao
   
   // Campos específicos para Mudança
   comodos?: number;
@@ -177,22 +187,38 @@ export interface Orcamento {
   ipCliente?: string;
   status?: OrcamentoStatus;
   
-  // Relacionamento com Empresa
-  empresaId?: string; // Se for orçamento para empresa específica
+  // Relacionamento com Empresa (deprecated)
+  empresaId?: string; // @deprecated Não use mais - orçamentos são relacionados via orcamentos_campanhas
   
   // Metadados
   createdAt?: string;
 }
 
 // ============================================
-// ORÇAMENTO EMPRESA (Relacionamento N:N)
+// ORÇAMENTO CAMPANHA (Relacionamento N:N)
+// ============================================
+// Tabela de junção entre orçamentos e campanhas
+// (antiga: orcamento_hotsites, antes: orcamento_empresas)
 // ============================================
 
+export interface OrcamentoCampanha {
+  id: string;
+  orcamentoId: string;
+  campanhaId: string;
+  hotsiteId: string; // Denormalizado para performance
+  status: string; // 'pendente' | 'visualizado' | 'respondido' | 'fechado'
+  createdAt?: string; // Data/hora que o orçamento foi enviado para a campanha
+  respondidoEm?: string; // @deprecated Use status
+}
+
+/**
+ * @deprecated Use OrcamentoCampanha ao invés de OrcamentoEmpresa
+ */
 export interface OrcamentoEmpresa {
   id: string;
   orcamentoId: string;
-  empresaId: string;
-  enviadoEm?: string;
+  empresaId: string; // @deprecated Use campanhaId e hotsiteId
+  enviadoEm?: string; // @deprecated Use createdAt
   respondidoEm?: string;
 }
 
@@ -205,18 +231,22 @@ export interface OrcamentoEmpresa {
 
 export interface Campanha {
   id: string;
-  empresaId: string;
-  planoId: string;
+  hotsiteId: string; // Hotsite vinculado à campanha (obrigatório)
+  planoId?: string; // Plano de publicidade (opcional)
   cidadeId?: string; // Cidade onde a campanha é válida (opcional)
-  hotsiteId?: string; // Hotsite específico vinculado à campanha (opcional)
-  dataInicio: string;
-  dataFim?: string;
-  valorTotal?: number;
-  dataCobranca?: string;
+  dataInicio: string; // Data de início (padrão: hoje)
+  dataFim?: string; // Data de fim (opcional)
+  valorMensal?: number; // Valor mensal da campanha (antes: valorTotal)
+  dataCobranca?: string; // Data de cobrança
   ativo: boolean; // Status da campanha (ativa/inativa)
+  participaCotacao: boolean; // Se participa do sistema de cotação de orçamentos
+  limiteOrcamentosMes?: number; // Limite de orçamentos por mês (NULL = ilimitado)
   observacoes?: string; // Notas administrativas
   createdAt?: string;
   updatedAt?: string;
+  
+  // Campos deprecated (compatibilidade)
+  empresaId?: string; // @deprecated Use hotsiteId
 }
 
 // ============================================

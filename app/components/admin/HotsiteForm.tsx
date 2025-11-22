@@ -1,21 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ImageUpload from './ImageUpload';
 import ArrayInput from './ArrayInput';
+import { supabase } from '@/lib/supabaseClient';
+
+interface Cidade {
+  id: string;
+  nome: string;
+  estado: string;
+  slug: string;
+}
 
 export default function HotsiteForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cidades, setCidades] = useState<Cidade[]>([]);
+  const [loadingCidades, setLoadingCidades] = useState(true);
 
   const [formData, setFormData] = useState({
     nome_exibicao: '',
     descricao: '',
     endereco: '',
-    cidade: '',
-    estado: '',
+    cidade_id: '',
     tipoempresa: 'Empresa de Mudança',
     telefone1: '',
     telefone2: '',
@@ -28,6 +37,28 @@ export default function HotsiteForm() {
     formas_pagamento: [] as string[],
     highlights: [] as string[],
   });
+
+  // Buscar cidades ao carregar o componente
+  useEffect(() => {
+    async function fetchCidades() {
+      try {
+        const { data, error } = await supabase
+          .from('cidades')
+          .select('id, nome, estado, slug')
+          .order('nome', { ascending: true });
+
+        if (error) throw error;
+        setCidades(data || []);
+      } catch (err) {
+        console.error('Erro ao buscar cidades:', err);
+        setError('Erro ao carregar lista de cidades');
+      } finally {
+        setLoadingCidades(false);
+      }
+    }
+
+    fetchCidades();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -85,11 +116,6 @@ export default function HotsiteForm() {
     }
   };
 
-  const estados = [
-    'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
-    'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
-    'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
-  ];
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 space-y-6">
@@ -157,41 +183,29 @@ export default function HotsiteForm() {
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-gray-900 border-b pb-2">Localização</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="cidade" className="block text-sm font-medium text-gray-700 mb-1">
-              Cidade *
-            </label>
-            <input
-              type="text"
-              id="cidade"
-              name="cidade"
-              required
-              value={formData.cidade}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ex: São Paulo"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="estado" className="block text-sm font-medium text-gray-700 mb-1">
-              Estado *
-            </label>
+        <div>
+          <label htmlFor="cidade_id" className="block text-sm font-medium text-gray-700 mb-1">
+            Cidade *
+          </label>
+          {loadingCidades ? (
+            <p className="text-sm text-gray-500">Carregando cidades...</p>
+          ) : (
             <select
-              id="estado"
-              name="estado"
+              id="cidade_id"
+              name="cidade_id"
               required
-              value={formData.estado}
+              value={formData.cidade_id}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Selecione...</option>
-              {estados.map(estado => (
-                <option key={estado} value={estado}>{estado}</option>
+              <option value="">Selecione uma cidade</option>
+              {cidades.map((cidade) => (
+                <option key={cidade.id} value={cidade.id}>
+                  {cidade.nome} - {cidade.estado}
+                </option>
               ))}
             </select>
-          </div>
+          )}
         </div>
 
         <div>

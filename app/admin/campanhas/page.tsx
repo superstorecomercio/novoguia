@@ -17,22 +17,28 @@ export default async function CampanhasPage() {
       empresa_id,
       data_inicio,
       data_fim,
-      valor_total,
+      valor_mensal,
       ativo,
+      participa_cotacao,
+      limite_orcamentos_mes,
       hotsite:hotsites!hotsite_id(
         id,
         nome_exibicao,
-        cidade,
-        estado,
         telefone1,
-        tipoempresa
+        tipoempresa,
+        cidade:cidades(nome, estado)
       ),
       empresas(
         id,
         nome,
-        hotsites(id, nome_exibicao, cidade, estado, tipoempresa)
+        hotsites(
+          id, 
+          nome_exibicao, 
+          tipoempresa,
+          cidade:cidades(nome, estado)
+        )
       ),
-      planos_publicidade(
+      planos(
         id,
         nome,
         ordem
@@ -68,9 +74,9 @@ export default async function CampanhasPage() {
     // Nome da empresa vem do hotsite
     const empresaNome = hotsite?.nome_exibicao || c.empresas?.nome || 'Sem vínculo';
     
-    // Cidade vem do hotsite
-    const cidadeNome = hotsite?.cidade && hotsite?.estado
-      ? `${hotsite.cidade} - ${hotsite.estado}`
+    // Cidade vem do hotsite (agora via JOIN com tabela cidades)
+    const cidadeNome = hotsite?.cidade?.nome && hotsite?.cidade?.estado
+      ? `${hotsite.cidade.nome} - ${hotsite.cidade.estado}`
       : undefined;
     
     // Tipo de empresa vem do hotsite
@@ -81,14 +87,16 @@ export default async function CampanhasPage() {
       hotsite_id: c.hotsite_id,
       empresa_id: c.empresa_id,
       empresa_nome: empresaNome,
-      plano_nome: c.planos_publicidade?.nome || 'Sem plano',
-      plano_ordem: c.planos_publicidade?.ordem || 999,
+      plano_nome: c.planos?.nome || 'Sem plano',
+      plano_ordem: c.planos?.ordem || 999,
       cidade_nome: cidadeNome,
       tipoempresa: tipoEmpresa,
       data_inicio: c.data_inicio,
       data_fim: c.data_fim,
-      valor: c.valor_total || 0,
+      valor: c.valor_mensal || 0,
       ativo,
+      participa_cotacao: c.participa_cotacao,
+      limite_orcamentos_mes: c.limite_orcamentos_mes,
     };
   }) || [];
 
@@ -115,7 +123,7 @@ export default async function CampanhasPage() {
     
     const { data: hotsitesPage } = await supabase
       .from('hotsites')
-      .select('id, nome_exibicao, cidade, estado')
+      .select('id, nome_exibicao, cidade:cidades(nome, estado)')
       .order('nome_exibicao', { ascending: true })
       .range(start, end);
     
@@ -127,7 +135,7 @@ export default async function CampanhasPage() {
   const hotsitesDisponiveis = allHotsites;
 
   const { data: planosDisponiveis } = await supabase
-    .from('planos_publicidade')
+    .from('planos')
     .select('id, nome, ordem')
     .order('ordem', { ascending: true });
 

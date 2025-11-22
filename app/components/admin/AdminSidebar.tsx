@@ -38,6 +38,22 @@ export default function AdminSidebar() {
             📢 Campanhas
           </Link>
           <Link
+            href="/admin/planos"
+            className={`block px-4 py-3 rounded-lg transition-colors ${
+              pathname?.startsWith('/admin/planos') ? 'bg-[#004080]' : 'hover:bg-[#004080]'
+            }`}
+          >
+            💎 Planos
+          </Link>
+          <Link
+            href="/admin/cidades"
+            className={`block px-4 py-3 rounded-lg transition-colors ${
+              pathname?.startsWith('/admin/cidades') ? 'bg-[#004080]' : 'hover:bg-[#004080]'
+            }`}
+          >
+            🌍 Cidades
+          </Link>
+          <Link
             href="/admin/orcamentos"
             className={`block px-4 py-3 rounded-lg transition-colors ${
               pathname?.startsWith('/admin/orcamentos') ? 'bg-[#004080]' : 'hover:bg-[#004080]'

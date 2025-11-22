@@ -26,6 +26,7 @@ export default function HotsiteEditForm({ hotsite, cidades }: HotsiteEditFormPro
     tipoempresa: hotsite.tipoempresa || 'Empresa de Mudança',
     telefone1: hotsite.telefone1 || '',
     telefone2: hotsite.telefone2 || '',
+    verificado: hotsite.verificado || false,
     logo_url: hotsite.logo_url || '',
     foto1_url: hotsite.foto1_url || '',
     foto2_url: hotsite.foto2_url || '',
@@ -152,6 +153,23 @@ export default function HotsiteEditForm({ hotsite, cidades }: HotsiteEditFormPro
             <option value="Carretos">Carretos</option>
             <option value="Guarda-Móveis">Guarda-Móveis</option>
           </select>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hotsiteData.verificado}
+              onChange={(e) => setHotsiteData({ ...hotsiteData, verificado: e.target.checked })}
+              className="w-4 h-4 text-[#0073e6] border-gray-300 rounded focus:ring-[#0073e6]"
+            />
+            <span className="text-sm font-medium text-gray-700">
+              Empresa Verificada
+            </span>
+          </label>
+          <p className="text-xs text-gray-500 mt-1 ml-6">
+            Marque esta opção para exibir o badge "Verificada" no site
+          </p>
         </div>
 
         <div className="md:col-span-2">

@@ -22,6 +22,7 @@ interface FormData {
 }
 
 interface ContatoData {
+  nome: string
   email: string
   whatsapp: string
   dataEstimada: string
@@ -61,7 +62,7 @@ export function InstantCalculatorHybrid() {
     destino: "",
     tipoImovel: "",
     temElevador: "",
-    andar: "0",
+    andar: "1", // Valor padrão: térreo/1º andar
     precisaEmbalagem: ""
   })
 
@@ -69,6 +70,7 @@ export function InstantCalculatorHybrid() {
   const [etapaAtual, setEtapaAtual] = useState(0)
 
   const [contatoData, setContatoData] = useState<ContatoData>({
+    nome: "",
     email: "",
     whatsapp: "",
     dataEstimada: ""
@@ -88,9 +90,38 @@ export function InstantCalculatorHybrid() {
     setErro(null)
   }
 
-  // Definir as etapas do formulário conversacional (dinâmico baseado em elevador)
+  // Função para formatar telefone com máscara
+  const formatarTelefone = (valor: string): string => {
+    // Remove tudo que não é número
+    const apenasNumeros = valor.replace(/\D/g, '')
+    
+    // Limita a 11 dígitos (DDD + 9 dígitos para celular ou 8 para fixo)
+    const numerosLimitados = apenasNumeros.slice(0, 11)
+    
+    // Aplica máscara baseado no tamanho
+    if (numerosLimitados.length <= 2) {
+      return numerosLimitados
+    } else if (numerosLimitados.length <= 6) {
+      return `(${numerosLimitados.slice(0, 2)}) ${numerosLimitados.slice(2)}`
+    } else if (numerosLimitados.length <= 10) {
+      // Telefone fixo: (XX) XXXX-XXXX
+      return `(${numerosLimitados.slice(0, 2)}) ${numerosLimitados.slice(2, 6)}-${numerosLimitados.slice(6)}`
+    } else {
+      // Celular: (XX) XXXXX-XXXX
+      return `(${numerosLimitados.slice(0, 2)}) ${numerosLimitados.slice(2, 7)}-${numerosLimitados.slice(7)}`
+    }
+  }
+
+  // Handler para campo de WhatsApp com máscara
+  const handleWhatsAppChange = (valor: string) => {
+    const formatado = formatarTelefone(valor)
+    setContatoData(prev => ({ ...prev, whatsapp: formatado }))
+    setErro(null)
+  }
+
+  // Definir as etapas do formulário conversacional
   const getEtapas = () => {
-    const etapasBase = [
+    const etapas = [
       {
         id: "origem",
         pergunta: "Olá! 👋 Vamos começar. De onde você vai mudar?",
@@ -123,31 +154,19 @@ export function InstantCalculatorHybrid() {
           { valor: "sim", label: "Sim" },
           { valor: "nao", label: "Não" }
         ]
+      },
+      {
+        id: "precisaEmbalagem",
+        pergunta: "Você precisa de embalagem e desmontagem de móveis?",
+        tipo: "select",
+        opcoes: [
+          { valor: "sim", label: "Sim, preciso de embalagem completa" },
+          { valor: "nao", label: "Não, eu mesmo embalo" }
+        ]
       }
     ]
 
-    // Se não tem elevador, adiciona pergunta do andar
-    if (formData.temElevador === "nao") {
-      etapasBase.push({
-        id: "andar",
-        pergunta: "Em qual andar fica? (considere o mais alto entre origem e destino)",
-        placeholder: "Ex: 3",
-        tipo: "number"
-      })
-    }
-
-    // Adiciona pergunta de embalagem no final
-    etapasBase.push({
-      id: "precisaEmbalagem",
-      pergunta: "Você precisa de embalagem e desmontagem de móveis?",
-      tipo: "select",
-      opcoes: [
-        { valor: "sim", label: "Sim, preciso de embalagem completa" },
-        { valor: "nao", label: "Não, eu mesmo embalo" }
-      ]
-    })
-
-    return etapasBase
+    return etapas
   }
 
   const etapas = getEtapas()
@@ -191,11 +210,7 @@ export function InstantCalculatorHybrid() {
       dados.temElevador !== "" &&
       dados.precisaEmbalagem !== ""
 
-    // Se não tem elevador, validar andar
-    const andarValido = dados.temElevador === "sim" || 
-      (dados.temElevador === "nao" && dados.andar.trim() !== "" && parseInt(dados.andar) > 0)
-
-    if (!basicos || !andarValido) {
+    if (!basicos) {
       setErro("Por favor, complete todas as etapas")
       return
     }
@@ -215,6 +230,12 @@ export function InstantCalculatorHybrid() {
   }
 
   const handleSubmitContato = async () => {
+    // Validação de nome
+    if (!contatoData.nome.trim()) {
+      setErro("Por favor, informe seu nome")
+      return
+    }
+
     // Validação de email
     if (!contatoData.email.trim()) {
       setErro("Por favor, informe seu e-mail")
@@ -236,38 +257,90 @@ export function InstantCalculatorHybrid() {
       return
     }
 
+    // Validação dos dados do formulário
+    if (!formData.origem.trim()) {
+      setErro("Por favor, informe a origem")
+      return
+    }
+    if (!formData.destino.trim()) {
+      setErro("Por favor, informe o destino")
+      return
+    }
+    if (!formData.tipoImovel) {
+      setErro("Por favor, selecione o tipo de imóvel")
+      return
+    }
+    if (!formData.temElevador) {
+      setErro("Por favor, informe se tem elevador")
+      return
+    }
+    if (!formData.precisaEmbalagem) {
+      setErro("Por favor, informe se precisa de embalagem")
+      return
+    }
+
     setLoading(true)
     setErro(null)
 
+    // Preparar dados para envio
+    const andarNumero = parseInt(formData.andar) || 1
+    // Remove máscara do WhatsApp antes de enviar (apenas números)
+    const whatsappSemMascara = contatoData.whatsapp.replace(/\D/g, "")
+    
+    const dadosParaEnvio = {
+      origem: formData.origem.trim(),
+      destino: formData.destino.trim(),
+      tipoImovel: formData.tipoImovel,
+      temElevador: formData.temElevador,
+      andar: andarNumero,
+      precisaEmbalagem: formData.precisaEmbalagem,
+      nome: contatoData.nome.trim(),
+      email: contatoData.email.trim(),
+      whatsapp: whatsappSemMascara,
+      dataEstimada: contatoData.dataEstimada?.trim() || undefined,
+      listaObjetos: listaObjetos?.trim() || undefined,
+      arquivoListaNome: arquivoLista?.name || undefined
+    }
+
+    console.log('📤 [Frontend] Enviando dados para API:', dadosParaEnvio)
+    console.log('📤 [Frontend] Validação dos dados:', {
+      origem: !!dadosParaEnvio.origem,
+      destino: !!dadosParaEnvio.destino,
+      tipoImovel: !!dadosParaEnvio.tipoImovel,
+      temElevador: !!dadosParaEnvio.temElevador,
+      andar: typeof dadosParaEnvio.andar === 'number',
+      precisaEmbalagem: !!dadosParaEnvio.precisaEmbalagem,
+      nome: !!dadosParaEnvio.nome,
+      email: !!dadosParaEnvio.email,
+      whatsapp: !!dadosParaEnvio.whatsapp,
+    })
+
     try {
+      // ✅ A IA agora extrai cidade e estado automaticamente do texto quebrado!
       const response = await fetch("/api/calcular-orcamento", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          origem: formData.origem,
-          destino: formData.destino,
-          tipoImovel: formData.tipoImovel,
-          temElevador: formData.temElevador,
-          andar: formData.temElevador === "nao" ? parseInt(formData.andar) : 0,
-          precisaEmbalagem: formData.precisaEmbalagem,
-          email: contatoData.email,
-          whatsapp: contatoData.whatsapp,
-          dataEstimada: contatoData.dataEstimada || undefined
-        })
+        body: JSON.stringify(dadosParaEnvio)
       })
 
+      console.log('📥 [Frontend] Resposta da API:', response.status, response.statusText)
+
       if (!response.ok) {
-        throw new Error("Erro ao calcular orçamento")
+        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }))
+        console.error('❌ [Frontend] Erro na resposta da API:', errorData)
+        throw new Error(errorData.error || "Erro ao calcular orçamento")
       }
 
       const data = await response.json()
+      console.log('✅ [Frontend] Dados recebidos da API:', data)
       setResultado(data)
       setEstado("resultadoFinal")
     } catch (error) {
-      console.error("Erro ao calcular orçamento:", error)
-      setErro("Ops! Algo deu errado. Por favor, tente novamente.")
+      console.error("❌ [Frontend] Erro ao calcular orçamento:", error)
+      const mensagemErro = error instanceof Error ? error.message : "Ops! Algo deu errado. Por favor, tente novamente."
+      setErro(mensagemErro)
     } finally {
       setLoading(false)
     }
@@ -281,10 +354,11 @@ export function InstantCalculatorHybrid() {
       destino: "",
       tipoImovel: "",
       temElevador: "",
-      andar: "0",
+      andar: "1", // ✅ CORRIGIDO: valor padrão 1
       precisaEmbalagem: ""
     })
     setContatoData({
+      nome: "",
       email: "",
       whatsapp: "",
       dataEstimada: ""
@@ -327,33 +401,15 @@ export function InstantCalculatorHybrid() {
   }
 
   const handleEnviarLista = async () => {
-    if (!listaObjetos.trim() && !arquivoLista) {
+    // ✅ Lista agora é enviada automaticamente com o orçamento
+    // Apenas marcamos como enviada para feedback visual
+    if (!listaObjetos?.trim() && !arquivoLista) {
       setErroLista("Digite a lista de objetos ou faça upload de um arquivo")
       return
     }
 
-    setEnviandoLista(true)
+    setListaEnviada(true)
     setErroLista(null)
-
-    try {
-      // TODO: Implementar envio para o backend
-      // Por enquanto, apenas simula o envio
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      console.log("📦 Lista de objetos enviada:", {
-        texto: listaObjetos,
-        arquivo: arquivoLista?.name,
-        email: contatoData.email,
-        whatsapp: contatoData.whatsapp
-      })
-      
-      setListaEnviada(true)
-    } catch (error) {
-      console.error("Erro ao enviar lista:", error)
-      setErroLista("Erro ao enviar lista. Tente novamente.")
-    } finally {
-      setEnviandoLista(false)
-    }
   }
 
   // ESTADO: Formulário Inicial (Conversacional)
@@ -563,16 +619,32 @@ export function InstantCalculatorHybrid() {
               Quase lá! Agora só falta um detalhe 👇
             </h2>
             <p className="text-muted-foreground leading-relaxed">
-              Para te mostrar a faixa exata de preço e enviar até 3 cotações verificadas de empresas 
-              de mudança confiáveis, me informe um contato rápido.
+              Para finalizar o cálculo e te mostrar a faixa exata de preço da sua mudança, 
+              me informe um contato rápido.
             </p>
             <p className="text-sm text-muted-foreground">
-              Você só recebe mensagens relevantes — sem spam.
+              Seus dados são seguros e não enviamos spam.
             </p>
           </div>
 
           {/* Campos de Contato */}
           <div className="space-y-5">
+            {/* Nome */}
+            <div className="space-y-2">
+              <Label htmlFor="nome" className="text-sm font-medium flex items-center gap-2">
+                👤 Seu nome
+              </Label>
+              <Input
+                id="nome"
+                type="text"
+                placeholder="Como você gostaria de ser chamado?"
+                value={contatoData?.nome || ""}
+                onChange={(e) => setContatoData(prev => ({ ...prev, nome: e.target.value }))}
+                className="h-12 rounded-xl"
+                autoFocus
+              />
+            </div>
+
             {/* E-mail */}
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
@@ -583,10 +655,9 @@ export function InstantCalculatorHybrid() {
                 id="email"
                 type="email"
                 placeholder="seuemail@exemplo.com"
-                value={contatoData.email}
+                value={contatoData?.email || ""}
                 onChange={(e) => setContatoData(prev => ({ ...prev, email: e.target.value }))}
                 className="h-12 rounded-xl"
-                autoFocus
               />
             </div>
 
@@ -600,12 +671,13 @@ export function InstantCalculatorHybrid() {
                 id="whatsapp"
                 type="tel"
                 placeholder="(11) 98765-4321"
-                value={contatoData.whatsapp}
-                onChange={(e) => setContatoData(prev => ({ ...prev, whatsapp: e.target.value }))}
+                value={contatoData?.whatsapp || ""}
+                onChange={(e) => handleWhatsAppChange(e.target.value)}
+                maxLength={15}
                 className="h-12 rounded-xl"
               />
               <p className="text-xs text-muted-foreground">
-                💡 Apenas números com DDD. Ex: 11987654321
+                💡 Formato: (DDD) 9XXXX-XXXX ou (DDD) XXXX-XXXX
               </p>
             </div>
 
@@ -617,7 +689,7 @@ export function InstantCalculatorHybrid() {
               <Input
                 id="dataEstimada"
                 type="date"
-                value={contatoData.dataEstimada}
+                value={contatoData?.dataEstimada || ""}
                 onChange={(e) => setContatoData(prev => ({ ...prev, dataEstimada: e.target.value }))}
                 className="h-12 rounded-xl"
                 min={new Date().toISOString().split('T')[0]}
@@ -625,6 +697,37 @@ export function InstantCalculatorHybrid() {
               <p className="text-xs text-muted-foreground">
                 💡 Ajuda as empresas a priorizar seu orçamento
               </p>
+            </div>
+
+            {/* Lista de Objetos (Opcional) */}
+            <div className="space-y-3 p-5 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+              <div className="flex items-start gap-2">
+                <FileText className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <Label htmlFor="listaObjetos" className="text-sm font-semibold text-foreground">
+                    📦 Lista de objetos (opcional)
+                  </Label>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Envie uma lista dos principais móveis/objetos da sua mudança para orçamentos mais precisos!
+                  </p>
+                </div>
+              </div>
+              
+              <textarea
+                id="listaObjetos"
+                placeholder="Ex:&#10;- Sofá 3 lugares&#10;- Cama box casal&#10;- Geladeira duplex&#10;- Mesa de jantar com 6 cadeiras&#10;- Guarda-roupa 4 portas&#10;- TV 55 polegadas"
+                value={listaObjetos || ""}
+                onChange={(e) => setListaObjetos(e.target.value)}
+                className="w-full min-h-[120px] p-3 rounded-xl border border-input bg-white resize-y text-sm"
+                disabled={!!arquivoLista}
+              />
+              
+              {listaObjetos?.trim() && (
+                <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Lista preenchida ({listaObjetos?.length || 0} caracteres)
+                </p>
+              )}
             </div>
 
             {/* Erro */}
@@ -638,7 +741,7 @@ export function InstantCalculatorHybrid() {
             <Button
               size="lg"
               onClick={handleSubmitContato}
-              disabled={loading || !contatoData.email.trim() || !contatoData.whatsapp.trim()}
+              disabled={loading || !contatoData?.nome?.trim() || !contatoData?.email?.trim() || !contatoData?.whatsapp?.trim()}
               className="w-full h-12 rounded-xl font-semibold text-base"
             >
               {loading ? (
@@ -647,14 +750,14 @@ export function InstantCalculatorHybrid() {
                   Calculando...
                 </>
               ) : (
-                "Ver faixa de preço e receber cotações"
+                "Ver faixa de preço estimada"
               )}
             </Button>
           </div>
 
           {/* Footer */}
           <p className="text-xs text-center text-muted-foreground">
-            🔒 Não enviamos spam. Você recebe no máximo 3 cotações e pode parar quando quiser.
+            🔒 Seus dados são protegidos e usados apenas para cálculo do orçamento.
           </p>
 
           {/* Botão Voltar */}
@@ -708,6 +811,23 @@ export function InstantCalculatorHybrid() {
             </p>
           </div>
 
+          {/* Indicação de lista incluída */}
+          {listaObjetos?.trim() && (
+            <div className="p-5 bg-green-50 rounded-xl border border-green-200">
+              <div className="flex gap-3 items-start">
+                <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-green-900">
+                    ✅ Lista de objetos incluída no orçamento
+                  </p>
+                  <p className="text-xs text-green-700 leading-relaxed">
+                    As empresas receberão sua lista para preparar propostas mais precisas!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Mensagem da IA (se houver) */}
           {resultado.mensagemIA && (
             <div className="p-6 bg-blue-50 rounded-2xl border border-blue-200">
@@ -731,164 +851,15 @@ export function InstantCalculatorHybrid() {
               <CheckCircle2 className="w-6 h-6 text-accent flex-shrink-0 mt-1" />
               <div className="space-y-2">
                 <p className="font-semibold text-foreground">
-                  Suas informações foram enviadas!
+                  Orçamento salvo com sucesso!
                 </p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Agora estamos enviando suas informações para empresas parceiras verificadas. 
-                  Você receberá <span className="font-semibold text-foreground">até 3 orçamentos personalizados</span> em 
-                  breve — sem compromisso.
+                  Recebemos suas informações e calculamos a estimativa de preço para sua mudança. 
+                  Os dados foram salvos e você pode usar esta estimativa como referência.
                 </p>
               </div>
             </div>
           </div>
-
-          {/* Seção de Lista de Objetos (Opcional) - Logo após o resultado */}
-          {!listaEnviada ? (
-            <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border border-blue-200">
-              <div className="space-y-4">
-                {/* Header */}
-                <div className="flex items-start gap-3">
-                  <FileText className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-foreground">
-                      💡 Deixe o orçamento ainda mais preciso (opcional)
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Se quiser, envie uma lista dos principais objetos/móveis da sua mudança. 
-                      Isso ajuda as empresas a prepararem orçamentos mais exatos!
-                    </p>
-                  </div>
-                </div>
-
-                {/* Opções */}
-                <div className="space-y-4">
-                  {/* Textarea para digitar */}
-                  <div className="space-y-2">
-                    <Label htmlFor="listaObjetos" className="text-sm font-medium">
-                      Digite a lista de objetos:
-                    </Label>
-                    <textarea
-                      id="listaObjetos"
-                      placeholder="Ex:&#10;- Sofá 3 lugares&#10;- Cama box casal&#10;- Geladeira duplex&#10;- Mesa de jantar com 6 cadeiras&#10;- Guarda-roupa 4 portas&#10;- TV 55 polegadas&#10;- Fogão 4 bocas&#10;..."
-                      value={listaObjetos}
-                      onChange={(e) => setListaObjetos(e.target.value)}
-                      className="w-full min-h-[120px] p-3 rounded-xl border border-input bg-white resize-y"
-                      disabled={!!arquivoLista}
-                    />
-                  </div>
-
-                  {/* Divider */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-px bg-border"></div>
-                    <span className="text-xs text-muted-foreground uppercase font-semibold">ou</span>
-                    <div className="flex-1 h-px bg-border"></div>
-                  </div>
-
-                  {/* Upload de arquivo */}
-                  <div className="space-y-2">
-                    <Label htmlFor="arquivoLista" className="text-sm font-medium">
-                      Ou faça upload de um arquivo:
-                    </Label>
-                    
-                    {!arquivoLista ? (
-                      <div className="relative">
-                        <input
-                          id="arquivoLista"
-                          type="file"
-                          accept=".txt,.pdf,.doc,.docx,.xls,.xlsx,.csv"
-                          onChange={handleFileChange}
-                          className="hidden"
-                          disabled={listaObjetos.trim() !== ""}
-                        />
-                        <label
-                          htmlFor="arquivoLista"
-                          className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
-                            listaObjetos.trim() !== "" 
-                              ? "border-muted bg-muted/30 cursor-not-allowed" 
-                              : "border-primary/30 bg-white hover:border-primary hover:bg-primary/5"
-                          }`}
-                        >
-                          <Upload className="w-5 h-5 text-primary" />
-                          <span className="text-sm font-medium text-foreground">
-                            Clique para selecionar arquivo
-                          </span>
-                        </label>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3 p-4 bg-white border border-accent/30 rounded-xl">
-                        <FileText className="w-5 h-5 text-accent flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {arquivoLista.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {(arquivoLista.size / 1024).toFixed(2)} KB
-                          </p>
-                        </div>
-                        <button
-                          onClick={handleRemoverArquivo}
-                          className="p-1 hover:bg-destructive/10 rounded-lg transition-colors"
-                        >
-                          <X className="w-4 h-4 text-destructive" />
-                        </button>
-                      </div>
-                    )}
-                    
-                    <p className="text-xs text-muted-foreground">
-                      Formatos aceitos: TXT, PDF, DOC, DOCX, XLS, XLSX, CSV
-                    </p>
-                  </div>
-
-                  {/* Erro Lista */}
-                  {erroLista && (
-                    <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
-                      <p className="text-sm text-destructive">{erroLista}</p>
-                    </div>
-                  )}
-
-                  {/* Botão Enviar */}
-                  <Button
-                    size="lg"
-                    onClick={handleEnviarLista}
-                    disabled={enviandoLista || (!listaObjetos.trim() && !arquivoLista)}
-                    className="w-full h-12 rounded-xl font-semibold"
-                  >
-                    {enviandoLista ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-5 h-5 mr-2" />
-                        Enviar lista de objetos
-                      </>
-                    )}
-                  </Button>
-
-                  {/* Nota sobre pular */}
-                  <p className="text-xs text-center text-muted-foreground">
-                    💡 Essa etapa é opcional. Pode preencher depois se preferir.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="p-6 bg-accent/10 rounded-2xl border border-accent/20">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-6 h-6 text-accent flex-shrink-0 mt-1" />
-                <div className="space-y-2">
-                  <p className="font-semibold text-foreground">
-                    Lista de objetos enviada com sucesso!
-                  </p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    As empresas receberão sua lista junto com o orçamento. Isso ajudará a preparar 
-                    cotações ainda mais precisas para sua mudança.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Detalhes da Mudança */}
           <div className="space-y-3 p-6 bg-muted/30 rounded-2xl">
@@ -912,12 +883,6 @@ export function InstantCalculatorHybrid() {
                 <span className="text-muted-foreground">Elevador:</span>
                 <span className="font-medium text-foreground">{formData.temElevador === "sim" ? "Sim" : "Não"}</span>
               </div>
-              {formData.temElevador === "nao" && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Andar:</span>
-                  <span className="font-medium text-foreground">{formData.andar}º</span>
-                </div>
-              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Embalagem:</span>
                 <span className="font-medium text-foreground">

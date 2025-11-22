@@ -159,7 +159,7 @@ const CityPage = async ({ params }: CityPageProps) => {
                   <div className="flex flex-col lg:flex-row gap-6">
                     {/* Logo e Info Principal */}
                     <div className="flex items-start gap-4 flex-1">
-                      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-muted flex-shrink-0 relative">
+                      <div className="w-[133px] h-[100px] rounded-2xl overflow-hidden bg-muted flex-shrink-0 relative">
                         <Image
                           src={getValidImageUrl(hotsite.logoUrl)}
                           alt={hotsite.nomeExibicao || 'Logo da empresa'}
@@ -187,17 +187,19 @@ const CityPage = async ({ params }: CityPageProps) => {
                                   {hotsite.plano.nome}
                                 </Badge>
                               )}
-                              <Badge variant="secondary" className="bg-accent/10 text-accent border-0">
-                                <Shield className="w-3 h-3 mr-1" />
-                                Verificada
-                              </Badge>
+                              {hotsite.verificado && (
+                                <Badge variant="secondary" className="bg-accent/10 text-accent border-0">
+                                  <Shield className="w-3 h-3 mr-1" />
+                                  Verificada
+                                </Badge>
+                              )}
                               {hotsite.tipoempresa && (
                                 <Badge variant="outline" className="border-muted">
                                   {hotsite.tipoempresa}
                                 </Badge>
                               )}
                             </div>
-                            <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                            <div className="flex flex-wrap gap-2 text-sm text-muted-foreground mb-3">
                               {hotsite.cidade && hotsite.estado && (
                                 <span className="flex items-center gap-1">
                                   <MapPin className="w-3 h-3" />
@@ -211,6 +213,15 @@ const CityPage = async ({ params }: CityPageProps) => {
                                 </span>
                               )}
                             </div>
+
+                            {/* Descrição da Empresa */}
+                            {hotsite.descricao && (
+                              <div className="mb-4">
+                                <p className="text-sm text-foreground/80 leading-relaxed line-clamp-3">
+                                  {hotsite.descricao}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
 

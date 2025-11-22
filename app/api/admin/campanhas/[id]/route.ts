@@ -21,11 +21,19 @@ export async function PATCH(
     }
 
     if (body.valor !== undefined) {
-      updateData.valor_total = body.valor;
+      updateData.valor_mensal = body.valor;
     }
 
     if (body.ativo !== undefined) {
       updateData.ativo = body.ativo;
+    }
+
+    if (body.participa_cotacao !== undefined) {
+      updateData.participa_cotacao = body.participa_cotacao;
+    }
+
+    if (body.limite_orcamentos_mes !== undefined) {
+      updateData.limite_orcamentos_mes = body.limite_orcamentos_mes || null;
     }
 
     // Atualizar campanha no banco

@@ -44,6 +44,7 @@ export const getHotsiteByEmpresaECidade = async (
       endereco: data.endereco,
       cidade: data.cidade,
       estado: data.estado,
+      verificado: data.verificado || false,
       logoUrl: data.logo_url,
       foto1Url: data.foto1_url,
       foto2Url: data.foto2_url,
@@ -90,6 +91,7 @@ export const getHotsitesByEmpresa = async (
       endereco: item.endereco,
       cidade: item.cidade,
       estado: item.estado,
+      verificado: item.verificado || false,
       logoUrl: item.logo_url,
       foto1Url: item.foto1_url,
       foto2Url: item.foto2_url,
@@ -109,8 +111,8 @@ export const getHotsitesByEmpresa = async (
 
 /**
  * Busca hotsites por slug da cidade (ex: "sao-paulo-sp")
- * NOVA LÓGICA SEM EMPRESA_ID: Usa apenas hotsite_id nas campanhas
- * Ordena por plano de publicidade
+ * LÓGICA SIMPLIFICADA: Busca campanhas ativas da cidade e extrai hotsites únicos
+ * Usa a mesma query do admin de campanhas para consistência
  */
 export const getHotsitesByCidadeSlug = async (
   cidadeSlug: string,
@@ -119,138 +121,128 @@ export const getHotsitesByCidadeSlug = async (
   try {
     const supabase = createServerClient();
     
-    // 1. Parse cidade/estado do slug
-    const parts = cidadeSlug.split('-');
-    const estadosBR = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+    // Buscar campanhas ativas da cidade (mesma lógica do admin)
+    const hoje = new Date().toISOString().split('T')[0];
     
-    const estadoNome = parts.length >= 2 && estadosBR.includes(parts[parts.length - 1].toUpperCase())
-      ? parts[parts.length - 1].toUpperCase()
-      : null;
-    const cidadeNome = estadoNome ? parts.slice(0, -1).join(' ') : parts.join(' ');
+    // Primeiro, buscar a cidade para pegar o ID
+    const { data: cidade, error: cidadeError } = await supabase
+      .from('cidades')
+      .select('id')
+      .eq('slug', cidadeSlug)
+      .single();
     
-    // Normalizar para busca
-    const normalizeForSearch = (text: string) => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const cidadeNomeNormalizado = normalizeForSearch(cidadeNome);
+    if (cidadeError || !cidade) {
+      return [];
+    }
     
-    // 2. Buscar campanhas ativas (usando hotsite_id OU empresa_id para compatibilidade)
-    const { data: campanhasAtivas } = await supabase
+    // Agora buscar campanhas filtrando por cidade_id diretamente nos hotsites
+    const { data: campanhas, error } = await supabase
       .from('campanhas')
-      .select('hotsite_id, empresa_id, plano_id, plano:planos_publicidade(nome, ordem)')
-      .eq('ativo', true);
+      .select(`
+        id,
+        hotsite_id,
+        ativo,
+        data_inicio,
+        data_fim,
+        hotsite:hotsites!hotsite_id(
+          id,
+          empresa_id,
+          cidade_id,
+          nome_exibicao,
+          descricao,
+          endereco,
+          cidade,
+          estado,
+          tipoempresa,
+          telefone1,
+          telefone2,
+          telefone3,
+          logo_url,
+          foto1_url,
+          foto2_url,
+          foto3_url,
+          servicos,
+          descontos,
+          formas_pagamento,
+          highlights,
+          verificado,
+          created_at,
+          updated_at
+        ),
+        planos(nome, ordem)
+      `)
+      .eq('ativo', true)
+      .eq('hotsite.cidade_id', cidade.id)
+      .lte('data_inicio', hoje)
+      .or(`data_fim.is.null,data_fim.gte.${hoje}`);
     
-    if (!campanhasAtivas || campanhasAtivas.length === 0) {
+    if (error || !campanhas || campanhas.length === 0) {
       return [];
     }
     
-    // Criar mapa hotsite_id -> plano (usando hotsite_id OU empresa_id)
-    const hotsitePlanoMap = new Map<string, { nome: string; ordem: number }>();
-    const empresaIdsAtivas = new Set<string>();
+    // Extrair hotsites únicos e associar ao melhor plano
+    const hotsitesMap = new Map<string, any>();
     
-    campanhasAtivas?.forEach((c: any) => {
-      if (c.plano) {
-        // Priorizar hotsite_id se existir
-        if (c.hotsite_id) {
-          const planoExistente = hotsitePlanoMap.get(c.hotsite_id);
-          if (!planoExistente || c.plano.ordem < planoExistente.ordem) {
-            hotsitePlanoMap.set(c.hotsite_id, {
-              nome: c.plano.nome,
-              ordem: c.plano.ordem,
-            });
-          }
-        }
-        // Fallback para empresa_id (compatibilidade temporária)
-        else if (c.empresa_id) {
-          empresaIdsAtivas.add(c.empresa_id);
-        }
+    campanhas.forEach((campanha: any) => {
+      const hotsite = campanha.hotsite;
+      if (!hotsite) return;
+      
+      const hotsiteId = hotsite.id;
+      const plano = campanha.planos || { nome: 'Padrão', ordem: 999 };
+      
+      // Se já existe, manter o plano de menor ordem (melhor)
+      const existente = hotsitesMap.get(hotsiteId);
+      if (!existente || plano.ordem < existente.plano.ordem) {
+        hotsitesMap.set(hotsiteId, {
+          hotsite,
+          plano,
+        });
       }
     });
     
-    // 3. Buscar hotsites da cidade
-    let query = supabase
-      .from('hotsites')
-      .select('*');
+    // Converter para array e formatar
+    let resultado = Array.from(hotsitesMap.values()).map(({ hotsite, plano }) => ({
+      id: hotsite.id,
+      empresaId: hotsite.empresa_id,
+      cidadeId: hotsite.cidade_id,
+      nomeExibicao: hotsite.nome_exibicao,
+      descricao: hotsite.descricao,
+      endereco: hotsite.endereco,
+      cidade: hotsite.cidade,
+      estado: hotsite.estado,
+      tipoempresa: hotsite.tipoempresa,
+      telefone1: hotsite.telefone1,
+      telefone2: hotsite.telefone2,
+      verificado: hotsite.verificado || false,
+      logoUrl: hotsite.logo_url,
+      foto1Url: hotsite.foto1_url,
+      foto2Url: hotsite.foto2_url,
+      foto3Url: hotsite.foto3_url,
+      servicos: hotsite.servicos || [],
+      descontos: hotsite.descontos || [],
+      formasPagamento: hotsite.formas_pagamento || [],
+      highlights: hotsite.highlights || [],
+      createdAt: hotsite.created_at,
+      updatedAt: hotsite.updated_at,
+      plano,
+    }));
     
-    if (estadoNome) {
-      query = query.eq('estado', estadoNome);
-    }
-    
-    const { data: todosHotsites, error } = await query;
-    
-    if (error) {
-      console.error('Erro ao buscar hotsites:', error);
-      return [];
-    }
-    
-    // Filtrar por cidade (normalizado)
-    const hotsitesDaCidade = todosHotsites?.filter(h => 
-      h.cidade && normalizeForSearch(h.cidade).includes(cidadeNomeNormalizado)
-    ) || [];
-    
-    // 4. Filtrar hotsites com campanhas ativas
-    // Aceitar hotsite se: tem campanha via hotsite_id OU via empresa_id (temporário)
-    const hotsitesFiltrados = hotsitesDaCidade.filter(h => 
-      hotsitePlanoMap.has(h.id) || (h.empresa_id && empresaIdsAtivas.has(h.empresa_id))
-    );
-    
-    // Criar mapa empresa_id -> plano (para fallback)
-    const empresaPlanoMap = new Map<string, { nome: string; ordem: number }>();
-    campanhasAtivas?.forEach((c: any) => {
-      if (c.plano && c.empresa_id && !c.hotsite_id) {
-        const planoExistente = empresaPlanoMap.get(c.empresa_id);
-        if (!planoExistente || c.plano.ordem < planoExistente.ordem) {
-          empresaPlanoMap.set(c.empresa_id, {
-            nome: c.plano.nome,
-            ordem: c.plano.ordem,
-          });
-        }
-      }
-    });
-    
-    // 4. Filtrar por tipo de empresa (se especificado)
-    let resultado = hotsitesFiltrados;
+    // Filtrar por tipo de empresa (se especificado)
     if (tipoEmpresa && tipoEmpresa !== 'todos') {
       resultado = resultado.filter(h => h.tipoempresa === tipoEmpresa);
     }
     
-    // 5. Adicionar plano e converter para formato esperado
-    const hotsitesComPlano = resultado.map((item: any) => ({
-      id: item.id,
-      empresaId: item.empresa_id,
-      cidadeId: item.cidade_id,
-      nomeExibicao: item.nome_exibicao,
-      descricao: item.descricao,
-      endereco: item.endereco,
-      cidade: item.cidade,
-      estado: item.estado,
-      tipoempresa: item.tipoempresa,
-      telefone1: item.telefone1,
-      telefone2: item.telefone2,
-      logoUrl: item.logo_url,
-      foto1Url: item.foto1_url,
-      foto2Url: item.foto2_url,
-      foto3Url: item.foto3_url,
-      servicos: item.servicos || [],
-      descontos: item.descontos || [],
-      formasPagamento: item.formas_pagamento || [],
-      highlights: item.highlights || [],
-      createdAt: item.created_at,
-      updatedAt: item.updated_at,
-      // Priorizar plano do hotsite_id, fallback para empresa_id
-      plano: hotsitePlanoMap.get(item.id) || (item.empresa_id ? empresaPlanoMap.get(item.empresa_id) : undefined),
-    }));
-    
-    // 6. Ordenar por plano
-    hotsitesComPlano.sort((a, b) => {
+    // Ordenar por plano (ordem) e depois por nome
+    resultado.sort((a, b) => {
       const ordemA = a.plano?.ordem ?? 999;
       const ordemB = b.plano?.ordem ?? 999;
       if (ordemA !== ordemB) {
         return ordemA - ordemB;
       }
-      // Se mesmo plano, ordenar por nome
       return (a.nomeExibicao || '').localeCompare(b.nomeExibicao || '');
     });
     
-    return hotsitesComPlano;
+    return resultado;
   } catch (err: any) {
     console.error('Erro inesperado ao buscar hotsites por cidade slug:', err);
     return [];
@@ -259,6 +251,7 @@ export const getHotsitesByCidadeSlug = async (
 
 /**
  * Conta hotsites por tipo de empresa em uma cidade
+ * LÓGICA SIMPLIFICADA: Usa mesma query de campanhas ativas
  */
 export const getHotsitesCountByTipo = async (
   cidadeSlug: string
@@ -266,70 +259,60 @@ export const getHotsitesCountByTipo = async (
   try {
     const supabase = createServerClient();
     
-    // Buscar campanhas ativas (usando hotsite_id OU empresa_id)
-    const { data: campanhasAtivas } = await supabase
-      .from('campanhas')
-      .select('hotsite_id, empresa_id')
-      .eq('ativo', true);
+    // Primeiro, buscar a cidade para pegar o ID
+    const { data: cidade, error: cidadeError } = await supabase
+      .from('cidades')
+      .select('id')
+      .eq('slug', cidadeSlug)
+      .single();
     
-    const hotsiteIdsAtivos = new Set<string>();
-    const empresaIdsAtivas = new Set<string>();
-    
-    campanhasAtivas?.forEach((c: any) => {
-      if (c.hotsite_id) {
-        hotsiteIdsAtivos.add(c.hotsite_id);
-      } else if (c.empresa_id) {
-        empresaIdsAtivas.add(c.empresa_id);
-      }
-    });
-    
-    if (hotsiteIdsAtivos.size === 0 && empresaIdsAtivas.size === 0) {
+    if (cidadeError || !cidade) {
       return { mudanca: 0, carreto: 0, guardamoveis: 0 };
     }
     
-    // Parse cidade/estado
-    const parts = cidadeSlug.split('-');
-    const estadosBR = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
-    const estadoNome = parts.length >= 2 && estadosBR.includes(parts[parts.length - 1].toUpperCase())
-      ? parts[parts.length - 1].toUpperCase()
-      : null;
-    const cidadeNome = estadoNome ? parts.slice(0, -1).join(' ') : parts.join(' ');
+    // Buscar campanhas ativas da cidade
+    const hoje = new Date().toISOString().split('T')[0];
     
-    const normalizeForSearch = (text: string) => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const cidadeNomeNormalizado = normalizeForSearch(cidadeNome);
+    const { data: campanhas, error } = await supabase
+      .from('campanhas')
+      .select(`
+        hotsite_id,
+        hotsite:hotsites!hotsite_id(
+          id,
+          tipoempresa,
+          cidade_id
+        )
+      `)
+      .eq('ativo', true)
+      .eq('hotsite.cidade_id', cidade.id)
+      .lte('data_inicio', hoje)
+      .or(`data_fim.is.null,data_fim.gte.${hoje}`);
     
-    // Buscar hotsites (buscar TODOS da cidade, filtrar depois)
-    let query = supabase
-      .from('hotsites')
-      .select('id, empresa_id, tipoempresa, cidade');
-    
-    if (estadoNome) {
-      query = query.eq('estado', estadoNome);
+    if (error || !campanhas || campanhas.length === 0) {
+      return { mudanca: 0, carreto: 0, guardamoveis: 0 };
     }
     
-    const { data: todosHotsites } = await query;
+    // Extrair hotsites únicos
+    const hotsitesUnicos = new Map<string, string>();
+    campanhas.forEach((c: any) => {
+      if (c.hotsite?.id && c.hotsite?.tipoempresa) {
+        hotsitesUnicos.set(c.hotsite.id, c.hotsite.tipoempresa);
+      }
+    });
     
-    // Filtrar por cidade e por campanha ativa
-    const hotsitesFiltrados = todosHotsites?.filter((h: any) => 
-      h.cidade && 
-      normalizeForSearch(h.cidade).includes(cidadeNomeNormalizado) &&
-      (hotsiteIdsAtivos.has(h.id) || (h.empresa_id && empresaIdsAtivas.has(h.empresa_id)))
-    ) || [];
-    
-    // Contar por tipo de empresa
+    // Contar por tipo
     const counts = {
       mudanca: 0,
       carreto: 0,
       guardamoveis: 0,
     };
     
-    hotsitesFiltrados.forEach((h: any) => {
-      const tipo = h.tipoempresa;
-      if (tipo === 'Empresa de Mudança') {
+    hotsitesUnicos.forEach((tipoempresa) => {
+      if (tipoempresa === 'Empresa de Mudança') {
         counts.mudanca++;
-      } else if (tipo === 'Carretos') {
+      } else if (tipoempresa === 'Carretos') {
         counts.carreto++;
-      } else if (tipo === 'Guarda-Móveis') {
+      } else if (tipoempresa === 'Guarda-Móveis') {
         counts.guardamoveis++;
       }
     });

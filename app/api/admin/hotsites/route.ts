@@ -8,15 +8,29 @@ export async function POST(request: Request) {
 
     console.log('📥 [API] Recebendo requisição para criar hotsite:', {
       nome_exibicao: body.nome_exibicao,
-      cidade: body.cidade,
-      estado: body.estado
+      cidade_id: body.cidade_id,
     });
 
     // Validação básica
-    if (!body.nome_exibicao || !body.cidade || !body.estado) {
+    if (!body.nome_exibicao || !body.cidade_id) {
       console.error('❌ [API] Campos obrigatórios faltando');
       return NextResponse.json(
-        { error: 'Campos obrigatórios: nome_exibicao, cidade, estado' },
+        { error: 'Campos obrigatórios: nome_exibicao, cidade_id' },
+        { status: 400 }
+      );
+    }
+
+    // Buscar dados da cidade na tabela cidades
+    const { data: cidadeData, error: cidadeError } = await supabase
+      .from('cidades')
+      .select('nome, estado')
+      .eq('id', body.cidade_id)
+      .single();
+
+    if (cidadeError || !cidadeData) {
+      console.error('❌ [API] Cidade não encontrada:', cidadeError);
+      return NextResponse.json(
+        { error: 'Cidade inválida' },
         { status: 400 }
       );
     }
@@ -26,8 +40,9 @@ export async function POST(request: Request) {
       nome_exibicao: body.nome_exibicao,
       descricao: body.descricao || null,
       endereco: body.endereco || null,
-      cidade: body.cidade,
-      estado: body.estado,
+      cidade_id: body.cidade_id,
+      cidade: cidadeData.nome, // Sincroniza com tabela cidades
+      estado: cidadeData.estado, // Sincroniza com tabela cidades
       tipoempresa: body.tipoempresa || 'Empresa de Mudança',
       telefone1: body.telefone1 || null,
       telefone2: body.telefone2 || null,

@@ -104,7 +104,9 @@ export async function POST(request: NextRequest) {
       plano_id: body.plano_id,
       data_inicio: body.data_inicio || new Date().toISOString().split('T')[0],
       data_fim: body.data_fim || null,
-      valor_total: body.valor_total || 0,
+      valor_mensal: body.valor_total || body.valor_mensal || 0, // Aceita ambos para compatibilidade
+      participa_cotacao: body.participa_cotacao !== undefined ? body.participa_cotacao : true,
+      limite_orcamentos_mes: body.limite_orcamentos_mes || null,
       ativo: false, // Nova campanha inicia inativa
     };
 

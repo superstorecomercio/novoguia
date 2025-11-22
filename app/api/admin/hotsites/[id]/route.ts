@@ -13,16 +13,39 @@ export async function PATCH(
 
     const supabase = createAdminClient();
 
+    // Se cidade_id foi fornecido, buscar dados da cidade para sincronizar
+    let cidadeData = null;
+    if (body.cidade_id) {
+      const { data, error: cidadeError } = await supabase
+        .from('cidades')
+        .select('nome, estado')
+        .eq('id', body.cidade_id)
+        .single();
+
+      if (!cidadeError && data) {
+        cidadeData = data;
+      }
+    }
+
     const updateData = {
       empresa_id: body.empresa_id || null,
       nome_exibicao: body.nome_exibicao,
       descricao: body.descricao,
       endereco: body.endereco,
-      cidade: body.cidade,
-      estado: body.estado,
+      // Se cidade_id foi fornecido, usar dados da tabela cidades
+      ...(body.cidade_id && cidadeData ? {
+        cidade_id: body.cidade_id,
+        cidade: cidadeData.nome,
+        estado: cidadeData.estado,
+      } : {
+        // Caso contrário, manter os campos texto se fornecidos
+        ...(body.cidade && { cidade: body.cidade }),
+        ...(body.estado && { estado: body.estado }),
+      }),
       tipoempresa: body.tipoempresa || 'Empresa de Mudança',
       telefone1: body.telefone1 || null,
       telefone2: body.telefone2 || null,
+      verificado: body.verificado !== undefined ? body.verificado : false,
       logo_url: body.logo_url || null,
       foto1_url: body.foto1_url || null,
       foto2_url: body.foto2_url || null,

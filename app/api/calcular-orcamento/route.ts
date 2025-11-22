@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { criarOrcamentoENotificar } from '@/lib/db/queries/orcamentos';
+import { logger } from '@/lib/utils/logger';
+import { checkRateLimit, recordAttempt, getIdentifier, checkDuplicateOrcamento } from '@/lib/utils/rateLimiter';
 
 type TipoImovel = 'kitnet' | '1_quarto' | '2_quartos' | '3_mais' | 'comercial';
 
@@ -10,9 +13,13 @@ interface CalculoRequest {
   temElevador: 'sim' | 'nao';
   andar: number;
   precisaEmbalagem: 'sim' | 'nao';
+  nome: string;
   email: string;
   whatsapp: string;
   dataEstimada?: string;
+  listaObjetos?: string;
+  arquivoListaUrl?: string;
+  arquivoListaNome?: string;
 }
 
 interface CalculoResponse {
@@ -21,6 +28,10 @@ interface CalculoResponse {
   faixaTexto: string;
   distanciaKm?: number;
   mensagemIA?: string;
+  cidadeOrigem?: string;
+  estadoOrigem?: string;
+  cidadeDestino?: string;
+  estadoDestino?: string;
 }
 
 // Todas as funções de cálculo de distância foram removidas.
@@ -31,7 +42,7 @@ interface CalculoResponse {
  * NÃO RECOMENDADO - Configure a OpenAI API Key para ter resultados precisos
  */
 async function calcularOrcamentoFallback(params: CalculoRequest): Promise<CalculoResponse> {
-  console.error('❌ OPENAI_API_KEY não configurada! Configure para ter orçamentos precisos.');
+  logger.warn('api-calculadora', '❌ OPENAI_API_KEY não configurada! Usando fallback básico.', params);
   
   const tiposImovelLabels: Record<TipoImovel, string> = {
     kitnet: 'kitnet',
@@ -50,10 +61,33 @@ async function calcularOrcamentoFallback(params: CalculoRequest): Promise<Calcul
     `o valor estimado fica entre R$ ${precoMin.toLocaleString('pt-BR')} e R$ ${precoMax.toLocaleString('pt-BR')}. ` +
     `⚠️ ATENÇÃO: Esta é uma estimativa genérica. Configure a OpenAI API Key para ter orçamentos precisos.`;
 
+  // Tentar extrair cidade e estado (fallback simples)
+  const extrairEstado = (texto: string): string => {
+    const estados = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
+      'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
+      'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+    
+    const textoUpper = texto.toUpperCase();
+    for (const estado of estados) {
+      if (textoUpper.includes(estado)) {
+        return estado;
+      }
+    }
+    return 'SP'; // Padrão
+  }
+
+  const extrairCidade = (texto: string): string => {
+    return texto.split(',')[0].trim() || texto;
+  }
+
   return {
     precoMin,
     precoMax,
     faixaTexto,
+    cidadeOrigem: extrairCidade(params.origem),
+    estadoOrigem: extrairEstado(params.origem),
+    cidadeDestino: extrairCidade(params.destino),
+    estadoDestino: extrairEstado(params.destino),
   };
 }
 
@@ -143,18 +177,28 @@ Retorne APENAS um JSON válido neste formato exato:
   "distanciaKm": 12,
   "precoMin": 800,
   "precoMax": 1200,
-  "explicacao": "Explicação clara (máx 3 frases) mencionando: (1) localidades interpretadas, (2) distância calculada, (3) principais fatores de custo."
+  "explicacao": "Explicação clara (máx 3 frases) mencionando: (1) localidades interpretadas, (2) distância calculada, (3) principais fatores de custo.",
+  "cidadeOrigem": "São Paulo",
+  "estadoOrigem": "SP",
+  "cidadeDestino": "São Paulo",
+  "estadoDestino": "SP"
 }
+
+⚠️ IMPORTANTE: Sempre retorne cidade e estado CORRIGIDOS e ESTRUTURADOS, mesmo que o usuário tenha digitado errado.
 
 EXEMPLO DE RESPOSTA CORRETA:
 {
   "distanciaKm": 12,
   "precoMin": 850,
   "precoMax": 1150,
-  "explicacao": "Mudança entre Moema e Santana, ambos bairros de São Paulo (12km). Distância curta dentro da mesma cidade, acesso facilitado com elevador. A faixa considera variação entre empresas mais econômicas e premium."
+  "explicacao": "Mudança entre Moema e Santana, ambos bairros de São Paulo (12km). Distância curta dentro da mesma cidade, acesso facilitado com elevador. A faixa considera variação entre empresas mais econômicas e premium.",
+  "cidadeOrigem": "São Paulo",
+  "estadoOrigem": "SP",
+  "cidadeDestino": "São Paulo",
+  "estadoDestino": "SP"
 }`;
 
-    console.log('🤖 Consultando IA para calcular distância e orçamento...');
+    logger.info('api-calculadora', '🤖 Consultando IA para calcular distância e orçamento...', params);
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini', // Modelo mais rápido e barato
@@ -172,12 +216,12 @@ EXEMPLO DE RESPOSTA CORRETA:
 
     const resposta = completion.choices[0].message.content;
     if (!resposta) {
-      console.error('❌ IA retornou resposta vazia');
+      logger.warn('api-calculadora', '❌ IA retornou resposta vazia', params);
       return null;
     }
 
     const resultado = JSON.parse(resposta);
-    console.log('✅ IA calculou orçamento completo:', resultado);
+    logger.info('api-calculadora', '✅ IA calculou orçamento completo', resultado);
 
     const distanciaKm = resultado.distanciaKm || 0;
     const distanciaTexto =
@@ -196,9 +240,13 @@ EXEMPLO DE RESPOSTA CORRETA:
       faixaTexto,
       distanciaKm,
       mensagemIA: resultado.explicacao,
+      cidadeOrigem: resultado.cidadeOrigem || params.origem,
+      estadoOrigem: resultado.estadoOrigem || 'SP',
+      cidadeDestino: resultado.cidadeDestino || params.destino,
+      estadoDestino: resultado.estadoDestino || 'SP',
     };
   } catch (error) {
-    console.error('❌ Erro ao calcular com IA:', error);
+    logger.error('api-calculadora', '❌ Erro ao calcular com IA', error instanceof Error ? error : new Error(String(error)), params);
     return null;
   }
 }
@@ -212,6 +260,79 @@ export async function POST(request: NextRequest) {
   try {
     const body: CalculoRequest = await request.json();
 
+    // ⚠️ PROTEÇÃO ANTI-SPAM: Verificar rate limiting ANTES de processar
+    let identifier: string;
+    let rateLimitCheck: { allowed: boolean; reason?: string; retryAfter?: number };
+    
+    try {
+      identifier = getIdentifier(request, body.email);
+      rateLimitCheck = checkRateLimit(identifier);
+    } catch (error) {
+      logger.error('api-calculadora', 'Erro ao verificar rate limit:', error instanceof Error ? error : new Error(String(error)));
+      // Em caso de erro, permitir (fail open)
+      rateLimitCheck = { allowed: true };
+    }
+
+    if (!rateLimitCheck.allowed) {
+      logger.warn('api-calculadora', '🚫 Rate limit excedido', {
+        identifier,
+        reason: rateLimitCheck.reason,
+        retryAfter: rateLimitCheck.retryAfter,
+      });
+
+      return NextResponse.json(
+        { 
+          error: rateLimitCheck.reason || 'Muitas tentativas. Por favor, aguarde alguns minutos antes de tentar novamente.',
+          retryAfter: rateLimitCheck.retryAfter,
+        },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': rateLimitCheck.retryAfter ? Math.ceil(rateLimitCheck.retryAfter / 1000).toString() : '1800',
+          },
+        }
+      );
+    }
+
+    // ⚠️ PROTEÇÃO ANTI-SPAM: Verificar duplicatas recentes
+    if (body.email && body.origem && body.destino) {
+      let duplicateCheck: { isDuplicate: boolean; existingId?: string };
+      
+      try {
+        duplicateCheck = await checkDuplicateOrcamento(
+          body.email,
+          body.origem,
+          body.destino,
+          5 // 5 minutos
+        );
+      } catch (error) {
+        logger.error('api-calculadora', 'Erro ao verificar duplicatas:', error instanceof Error ? error : new Error(String(error)));
+        // Em caso de erro, permitir (fail open)
+        duplicateCheck = { isDuplicate: false };
+      }
+
+      if (duplicateCheck.isDuplicate) {
+        logger.warn('api-calculadora', '🚫 Orçamento duplicado detectado', {
+          email: body.email,
+          origem: body.origem,
+          destino: body.destino,
+          existingId: duplicateCheck.existingId,
+        });
+
+        return NextResponse.json(
+          { 
+            error: 'Você já solicitou um orçamento com estes dados recentemente. Aguarde alguns minutos antes de tentar novamente.',
+            duplicate: true,
+            existingId: duplicateCheck.existingId,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Registrar tentativa (após passar nas validações)
+    recordAttempt(identifier);
+
     // Validação básica dos dados
     if (!body.origem || !body.destino || !body.tipoImovel || !body.temElevador || typeof body.andar !== 'number' || !body.precisaEmbalagem) {
       return NextResponse.json(
@@ -220,7 +341,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validação do email e whatsapp
+    // Validação dos dados de contato
+    if (!body.nome || body.nome.trim() === '') {
+      return NextResponse.json(
+        { error: 'Nome é obrigatório.' },
+        { status: 400 }
+      );
+    }
+
     if (!body.email || body.email.trim() === '') {
       return NextResponse.json(
         { error: 'E-mail é obrigatório.' },
@@ -240,45 +368,74 @@ export async function POST(request: NextRequest) {
 
     // Se a IA não estiver disponível, usar fallback básico
     if (!resultado) {
-      console.log('⚠️ IA não disponível. Usando estimativa básica (fallback)');
+      logger.warn('api-calculadora', '⚠️ IA não disponível. Usando estimativa básica (fallback)', body);
       resultado = await calcularOrcamentoFallback(body);
     }
 
-    // TODO: Salvar a solicitação no banco de dados (Supabase)
-    // - Salvar dados do lead (email, whatsapp, origem, destino, etc.)
-    // - Enviar notificação para empresas parceiras
-    // - Enviar e-mail/WhatsApp para o usuário confirmando o recebimento
-    
-    /*
-    Exemplo de salvamento no Supabase:
-    
-    const { data, error } = await supabase
-      .from('orcamentos')
-      .insert({
+    // Salvar orçamento no banco de dados
+    try {
+      logger.info('api-calculadora', '💾 Salvando orçamento no banco...', {
+        nome: body.nome,
+        email: body.email,
+        origem: body.origem,
+        destino: body.destino,
+        estadoOrigem: resultado.estadoOrigem,
+        cidadeOrigem: resultado.cidadeOrigem,
+        estadoDestino: resultado.estadoDestino,
+        cidadeDestino: resultado.cidadeDestino,
+        tipoImovel: body.tipoImovel,
+        temElevador: body.temElevador,
+        andar: body.andar,
+        precisaEmbalagem: body.precisaEmbalagem,
+      });
+      
+      const orcamentoSalvo = await criarOrcamentoENotificar({
+        nome: body.nome,
         email: body.email,
         whatsapp: body.whatsapp,
         origem: body.origem,
         destino: body.destino,
-        tipo_imovel: body.tipoImovel,
-        tem_elevador: body.temElevador === 'sim',
+        estadoOrigem: resultado.estadoOrigem || undefined,
+        cidadeOrigem: resultado.cidadeOrigem || undefined,
+        estadoDestino: resultado.estadoDestino || undefined,
+        cidadeDestino: resultado.cidadeDestino || undefined,
+        tipoImovel: body.tipoImovel,
+        temElevador: body.temElevador === 'sim',
         andar: body.andar,
-        precisa_embalagem: body.precisaEmbalagem === 'sim',
-        data_estimada: body.dataEstimada,
-        preco_min: resultado.precoMin,
-        preco_max: resultado.precoMax,
-        distancia_km: resultado.distanciaKm,
-        status: 'pendente',
-        created_at: new Date().toISOString(),
+        precisaEmbalagem: body.precisaEmbalagem === 'sim',
+        dataEstimada: body.dataEstimada,
+        distanciaKm: resultado.distanciaKm,
+        precoMin: resultado.precoMin,
+        precoMax: resultado.precoMax,
+        mensagemIA: resultado.mensagemIA,
+        listaObjetos: body.listaObjetos,
+        arquivoListaUrl: body.arquivoListaUrl,
+        arquivoListaNome: body.arquivoListaNome,
+        origemFormulario: 'calculadora',
+        userAgent: request.headers.get('user-agent') || undefined,
+        ipCliente: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
       });
-    
-    if (error) {
-      console.error('Erro ao salvar orçamento:', error);
+      
+      logger.info('api-calculadora', '✅ Orçamento salvo com sucesso!', {
+        orcamentoId: orcamentoSalvo.orcamentoId,
+        hotsitesNotificados: orcamentoSalvo.hotsitesNotificados,
+        campanhasVinculadas: orcamentoSalvo.hotsitesIds?.length || 0,
+      });
+    } catch (error) {
+      logger.error('api-calculadora', '❌ ERRO ao salvar orçamento no banco', error instanceof Error ? error : new Error(String(error)), {
+        nome: body.nome,
+        email: body.email,
+        origem: body.origem,
+        destino: body.destino,
+      });
+      // ⚠️ IMPORTANTE: Não falha a requisição se o salvamento falhar
+      // O usuário ainda recebe o orçamento calculado
+      // Mas o erro é logado para debug
     }
-    */
 
     return NextResponse.json(resultado);
   } catch (error) {
-    console.error('Erro ao processar cálculo de orçamento:', error);
+    logger.error('api-calculadora', 'Erro ao processar cálculo de orçamento', error instanceof Error ? error : new Error(String(error)));
     return NextResponse.json(
       { error: 'Erro ao processar sua solicitação. Por favor, tente novamente.' },
       { status: 500 }

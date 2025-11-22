@@ -105,98 +105,56 @@ export const getCidadeBySlug = async (slug: string): Promise<City | null> => {
   try {
     const supabase = createServerClient();
     
-    // Buscar campanhas ativas (usando hotsite_id ou empresa_id)
+    // 1. Buscar cidade na tabela cidades pelo slug
+    const { data: cidade, error: cidadeError } = await supabase
+      .from('cidades')
+      .select('*')
+      .eq('slug', slug)
+      .single();
+    
+    if (cidadeError || !cidade) {
+      console.error('Cidade não encontrada:', slug);
+      return null;
+    }
+    
+    // 2. Buscar campanhas ativas e vigentes
+    const hoje = new Date().toISOString().split('T')[0];
     const { data: campanhasAtivas } = await supabase
       .from('campanhas')
-      .select('hotsite_id, empresa_id')
-      .eq('ativo', true);
+      .select('hotsite_id')
+      .eq('ativo', true)
+      .lte('data_inicio', hoje)
+      .or(`data_fim.is.null,data_fim.gte.${hoje}`);
     
-    if (!campanhasAtivas || campanhasAtivas.length === 0) {
-      return null;
-    }
-
-    // Coletar IDs de hotsites e empresas com campanhas ativas
     const hotsiteIdsAtivos = new Set<string>();
-    const empresaIdsAtivas = new Set<string>();
-    
-    campanhasAtivas.forEach(c => {
-      if (c.hotsite_id) hotsiteIdsAtivos.add(c.hotsite_id);
-      if (c.empresa_id) empresaIdsAtivas.add(c.empresa_id);
+    campanhasAtivas?.forEach((c: any) => {
+      if (c.hotsite_id) {
+        hotsiteIdsAtivos.add(c.hotsite_id);
+      }
     });
     
-    if (hotsiteIdsAtivos.size === 0 && empresaIdsAtivas.size === 0) {
-      return null;
-    }
-    
-    // Parse do slug para extrair cidade e estado
-    const parts = slug.split('-');
-    let cidadeNome: string;
-    let estado: string | null = null;
-    
-    // Estados brasileiros conhecidos (2 letras)
-    const estadosBR = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
-    
-    // Se a última parte é um estado conhecido (2 letras), separar cidade e estado
-    if (parts.length >= 2 && estadosBR.includes(parts[parts.length - 1].toUpperCase())) {
-      estado = parts[parts.length - 1].toUpperCase();
-      cidadeNome = parts.slice(0, -1).join(' ');
-    } else {
-      // Caso contrário, assumir que todo o slug é o nome da cidade
-      cidadeNome = parts.join(' ');
-    }
-    
-    // Normalizar nome da cidade para busca (remover acentos)
-    const cidadeNomeNormalizado = normalizeForSearch(cidadeNome);
-    
-    // Buscar TODOS os hotsites da cidade primeiro
-    let query = supabase
+    // 3. Buscar hotsites da cidade
+    const { data: hotsitesDaCidade } = await supabase
       .from('hotsites')
-      .select('id, cidade, estado, empresa_id');
+      .select('id')
+      .eq('cidade_id', cidade.id);
     
-    if (estado) {
-      query = query.eq('estado', estado);
-    }
-    
-    const { data: todosHotsites, error } = await query;
-    
-    if (error) {
-      console.error('Erro ao buscar cidade dos hotsites:', error);
-      return null;
-    }
-    
-    if (error) {
-      console.error('Erro ao buscar cidade dos hotsites:', error);
-      return null;
-    }
-
-    // Filtrar localmente por nome normalizado (sem acentos) E que tenham campanha ativa
-    const hotsites = todosHotsites?.filter(h => 
-      h.cidade && 
-      normalizeForSearch(h.cidade).includes(cidadeNomeNormalizado) &&
-      (hotsiteIdsAtivos.has(h.id) || (h.empresa_id && empresaIdsAtivas.has(h.empresa_id)))
+    // 4. Filtrar hotsites que têm campanhas ativas
+    const hotsitesComCampanha = hotsitesDaCidade?.filter(h => 
+      hotsiteIdsAtivos.has(h.id)
     ) || [];
-
-    if (hotsites.length === 0) {
-      return null;
-    }
-
-    const primeiroHotsite = hotsites[0];
-    const estadoFinal = estado || primeiroHotsite.estado;
     
-    // Contar hotsites únicos nesta cidade com campanhas ativas
-    const hotsitesUnicos = new Set(hotsites.map(h => h.id));
-
-    // Gerar slug correto com estado
-    const slugCorreto = generateSlug(`${primeiroHotsite.cidade}-${estadoFinal}`);
-
+    // Contar hotsites únicos com campanhas ativas
+    const hotsitesUnicos = new Set(hotsitesComCampanha.map(h => h.id));
+    
     return {
-      id: slugCorreto,
-      name: primeiroHotsite.cidade,
-      slug: slugCorreto,
-      state: estadoFinal,
-      description: undefined,
-      region: undefined,
-      createdAt: undefined,
+      id: cidade.id,
+      name: cidade.nome,
+      slug: cidade.slug,
+      state: cidade.estado,
+      description: cidade.descricao || undefined,
+      region: cidade.regiao || undefined,
+      createdAt: cidade.created_at || undefined,
       empresaCount: hotsitesUnicos.size,
     };
   } catch (err: any) {
