@@ -265,22 +265,23 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
       const porte = formData.tipoImovel ? tiposImovelPorte[formData.tipoImovel as TipoImovel] : "médio"
       
       // Adiciona mensagens de preview após um pequeno delay
+      // Tempos aumentados para dar tempo de leitura no celular
       setTimeout(() => {
         addBotMessage(`Sua mudança parece ser de porte ${porte} na região informada.`)
       }, 1000)
-      
+
       setTimeout(() => {
         addBotMessage("Normalmente, mudanças desse tipo ficam em uma faixa de preço bem definida, dependendo da distância, dificuldade de acesso e volume transportado.")
-      }, 3000)
-      
+      }, 4000)
+
       setTimeout(() => {
         addBotMessage("Para te mostrar a faixa real de preço baseada em centenas de mudanças parecidas e ainda te enviar (cotações verificadas de empresas de mudança), me informe um contato rápido.")
-      }, 5000)
-      
+      }, 8000)
+
       setTimeout(() => {
         handleContinuarParaContato()
         previewExecutadoRef.current = false // Reset para permitir nova execução se necessário
-      }, 7000)
+      }, 11000)
     }
     
     // Reset quando sair do preview
@@ -624,10 +625,11 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
     }
 
     // Pergunta sobre lista de objetos antes de calcular
-    setMostrarPerguntaLista(true)
+    // Primeiro adiciona a mensagem, depois mostra os botões
+    addBotMessage("Antes de calcular, você gostaria de enviar uma lista de objetos para um orçamento mais preciso?")
     setTimeout(() => {
-      addBotMessage("Antes de calcular, você gostaria de enviar uma lista de objetos para um orçamento mais preciso?")
-    }, 500)
+      setMostrarPerguntaLista(true)
+    }, 800)
   }
 
   const handleResponderLista = (querEnviar: boolean) => {
