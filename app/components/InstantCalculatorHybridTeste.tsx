@@ -718,10 +718,13 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
       const tempoRestante = Math.max(0, tempoMinimo - tempoDecorrido)
       
       await new Promise(resolve => setTimeout(resolve, tempoRestante))
-      
+
       setResultado(data)
       setEstado("resultadoFinal")
       setMessages([])
+
+      // Scroll para o topo da página no mobile para mostrar o resultado
+      window.scrollTo({ top: 0, behavior: "smooth" })
     } catch (error) {
       // Mesmo em caso de erro, aguarda o tempo mínimo
       const tempoDecorrido = Date.now() - inicioTempo

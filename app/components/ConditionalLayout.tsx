@@ -22,7 +22,7 @@ export default function ConditionalLayout({
   return (
     <>
       <Header />
-      <main className={cn("flex-grow", isCalculadoraTeste ? "pt-0" : "pt-20")}>{children}</main>
+      <main className={cn("flex-grow", isCalculadoraTeste ? "pt-0" : "pt-16 lg:pt-20")}>{children}</main>
       {!hideFooter && <Footer />}
     </>
   );

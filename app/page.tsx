@@ -77,12 +77,12 @@ export default function Home() {
               </div>
 
               {/* Botões de Ação */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 relative z-10">
                 <Link
                   href="/calculadorateste"
-                  className="group relative p-8 bg-white border-2 border-primary rounded-2xl hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-primary/5 to-primary/10"
+                  className="group relative p-6 md:p-8 bg-white border-2 border-primary rounded-2xl hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-primary/5 to-primary/10 cursor-pointer active:scale-[0.98]"
                 >
-                  <div className="flex items-start gap-4 text-left">
+                  <div className="flex items-start gap-4 text-left pointer-events-none">
                     <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors">
                       <Calculator className="w-8 h-8 text-primary" />
                     </div>
@@ -99,9 +99,9 @@ export default function Home() {
 
                 <Link
                   href="/cidades/sao-paulo-sp"
-                  className="group relative p-8 bg-white border-2 border-border rounded-2xl hover:shadow-xl transition-all duration-300 hover:border-primary"
+                  className="group relative p-6 md:p-8 bg-white border-2 border-border rounded-2xl hover:shadow-xl transition-all duration-300 hover:border-primary cursor-pointer active:scale-[0.98]"
                 >
-                  <div className="flex items-start gap-4 text-left">
+                  <div className="flex items-start gap-4 text-left pointer-events-none">
                     <div className="p-3 bg-accent/10 rounded-xl group-hover:bg-accent/20 transition-colors">
                       <Building2 className="w-8 h-8 text-accent" />
                     </div>
@@ -138,12 +138,12 @@ export default function Home() {
             </div>
 
             {/* Grid de Cidades */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 relative z-10">
               {cidadesPopulares.map((cidade) => (
                 <Link
                   key={cidade.slug}
                   href={`/cidades/${cidade.slug}`}
-                  className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-white border border-slate-200"
+                  className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-white border border-slate-200 cursor-pointer active:scale-[0.98]"
                 >
                   {/* Imagem de Fundo */}
                   <div className="relative h-48 overflow-hidden">
