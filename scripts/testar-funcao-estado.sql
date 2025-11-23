@@ -27,3 +27,4 @@ SELECT
   STRING_AGG(nome, ', ' ORDER BY nome) as empresas
 FROM buscar_hotsites_ativos_por_estado('SP', 'mudanca');
 
+

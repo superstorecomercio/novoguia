@@ -32,3 +32,4 @@ Se você só precisa de referência rápida:
 **Última Atualização:** 22 de Novembro de 2025
 
 
+

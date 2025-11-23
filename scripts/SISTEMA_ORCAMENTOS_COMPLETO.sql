@@ -384,3 +384,4 @@ WHERE ci.nome = 'São Paulo'
 -- Certifique-se de que as tabelas já existem antes de executar.
 
 
+
