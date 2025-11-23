@@ -2,13 +2,14 @@
 
 import { useState } from "react"
 import { InstantCalculatorHybridTeste } from "@/app/components/InstantCalculatorHybridTeste"
+import { cn } from "@/lib/utils"
 
 export default function CalculadoraTestePage() {
   const [mostrarHeader, setMostrarHeader] = useState(true)
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <div className="container mx-auto px-4 py-8">
+      <div className={cn("container mx-auto px-4 py-8", mostrarHeader ? "pt-24 md:pt-28" : "pt-20 md:pt-24")}>
         {mostrarHeader && (
           <header className="mb-8 text-center space-y-4">
             <div className="space-y-3 font-[family-name:var(--font-montserrat)]">

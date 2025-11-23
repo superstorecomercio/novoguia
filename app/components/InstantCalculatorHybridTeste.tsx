@@ -212,10 +212,30 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
     // Usa requestAnimationFrame para garantir que o DOM foi atualizado
     requestAnimationFrame(() => {
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+        if (messagesEndRef.current) {
+          // No mobile, usar block: "nearest" pode funcionar melhor
+          const isMobile = window.innerWidth < 768
+          messagesEndRef.current.scrollIntoView({ 
+            behavior: "smooth", 
+            block: isMobile ? "nearest" : "end",
+            inline: "nearest"
+          })
+        }
       }, 100)
     })
   }
+
+  // Autoscroll quando mensagens mudam, isTyping ou loading mudam
+  useEffect(() => {
+    if (messages.length > 0 || isTyping || loading) {
+      // Delay para garantir que o DOM foi atualizado
+      const timer = setTimeout(() => {
+        scrollToBottom()
+      }, 150)
+      return () => clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, isTyping, loading])
 
   // Inicialização com mensagens de boas-vindas
   useEffect(() => {
@@ -756,18 +776,18 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
       <Card className="max-w-3xl mx-auto bg-card/80 backdrop-blur-sm border-2 shadow-2xl font-[family-name:var(--font-montserrat)]">
         <div className="flex flex-col max-h-[80vh] lg:max-h-[600px]">
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto scrollbar-hide p-6 space-y-4 min-h-0">
+          <div className="flex-1 overflow-y-auto scrollbar-hide p-4 md:p-6 space-y-3 md:space-y-4 min-h-0">
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={cn(
-                  "flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500",
+                  "flex items-start gap-2 md:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500",
                   message.type === "user" ? "flex-row-reverse" : "flex-row",
                 )}
               >
                 <div
                   className={cn(
-                    "flex h-16 w-16 shrink-0 items-center justify-center rounded-full overflow-hidden",
+                    "flex h-12 w-12 md:h-14 md:w-14 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full overflow-hidden",
                     message.type === "bot" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
                   )}
                 >
@@ -782,17 +802,17 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                         />
                     </div>
                   ) : (
-                    <User className="h-8 w-8" />
+                    <User className="h-6 w-6 md:h-7 md:w-7 lg:h-8 lg:w-8" />
                   )}
                 </div>
                 <div className="flex flex-col gap-1 max-w-[80%]">
                   <div
                     className={cn(
-                      "rounded-2xl px-5 py-3 shadow-sm relative",
+                      "rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm relative",
                       message.type === "bot" ? "bg-muted text-foreground" : "bg-primary text-primary-foreground",
                     )}
                   >
-                    <p className="text-xl leading-relaxed font-medium">
+                    <p className="text-base md:text-lg lg:text-xl leading-relaxed font-medium">
                       {message.text.split(/(\*\*.*?\*\*)/g).map((part, i) => 
                         part.startsWith('**') && part.endsWith('**') ? (
                           <strong key={i}>{part.slice(2, -2)}</strong>
@@ -830,8 +850,8 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
             ))}
 
             {isTyping && (
-              <div className="flex items-start gap-3 animate-in fade-in">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full overflow-hidden">
+              <div className="flex items-start gap-2 md:gap-3 animate-in fade-in">
+                <div className="flex h-12 w-12 md:h-14 md:w-14 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full overflow-hidden">
                   <div className="h-full w-full flex items-center justify-center bg-white rounded-full p-0.5 shadow-sm overflow-hidden">
                         <Image
                           src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face&bg=FFE5E5"
@@ -842,7 +862,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                         />
                   </div>
                 </div>
-                <div className="rounded-2xl px-5 py-3 bg-muted">
+                <div className="rounded-2xl px-4 py-2.5 md:px-5 md:py-3 bg-muted">
                   <div className="flex gap-1">
                     <div className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.3s]" />
                     <div className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.15s]" />
@@ -865,7 +885,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                         />
                   </div>
                 </div>
-                <div className="rounded-2xl px-5 py-3 bg-muted">
+                <div className="rounded-2xl px-4 py-2.5 md:px-5 md:py-3 bg-muted">
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-5 w-5 text-primary animate-spin" />
                     <span className="text-sm text-muted-foreground">Calculando orçamento...</span>
@@ -916,15 +936,15 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                     />
                     <Mic className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60" />
                   </div>
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="h-14 px-6 text-base font-semibold rounded-xl shadow-md bg-orange-500 hover:bg-orange-600 text-white hover:brightness-110 transition-all duration-200 hover:shadow-lg"
-                    disabled={!inputValue.trim()}
-                  >
-                    Enviar
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="h-14 w-14 md:w-auto md:px-6 text-base font-semibold rounded-xl shadow-md bg-green-500 hover:bg-green-600 text-white hover:brightness-110 transition-all duration-200 hover:shadow-lg flex items-center justify-center"
+                  disabled={!inputValue.trim()}
+                >
+                  <span className="hidden md:inline">Enviar</span>
+                  <ChevronRight className={cn("h-5 w-5", "md:ml-2 md:h-4 md:w-4")} />
+                </Button>
                 </form>
               )}
               {erro && (
@@ -945,18 +965,18 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
       <Card className="max-w-3xl mx-auto bg-card/80 backdrop-blur-sm border-2 shadow-2xl font-[family-name:var(--font-montserrat)]">
         <div className="flex flex-col max-h-[80vh] lg:max-h-[600px]">
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto scrollbar-hide p-6 space-y-4 min-h-0">
+          <div className="flex-1 overflow-y-auto scrollbar-hide p-4 md:p-6 space-y-3 md:space-y-4 min-h-0">
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={cn(
-                  "flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500",
+                  "flex items-start gap-2 md:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500",
                   message.type === "user" ? "flex-row-reverse" : "flex-row",
                 )}
               >
                 <div
                   className={cn(
-                    "flex h-16 w-16 shrink-0 items-center justify-center rounded-full overflow-hidden",
+                    "flex h-12 w-12 md:h-14 md:w-14 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full overflow-hidden",
                     message.type === "bot" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
                   )}
                 >
@@ -971,17 +991,17 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                         />
                     </div>
                   ) : (
-                    <User className="h-8 w-8" />
+                    <User className="h-6 w-6 md:h-7 md:w-7 lg:h-8 lg:w-8" />
                   )}
                 </div>
                 <div className="flex flex-col gap-1 max-w-[80%]">
                   <div
                     className={cn(
-                      "rounded-2xl px-5 py-3 shadow-sm relative",
+                      "rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm relative",
                       message.type === "bot" ? "bg-muted text-foreground" : "bg-primary text-primary-foreground",
                     )}
                   >
-                    <p className="text-xl leading-relaxed font-medium">
+                    <p className="text-base md:text-lg lg:text-xl leading-relaxed font-medium">
                       {message.text.split(/(\*\*.*?\*\*)/g).map((part, i) => 
                         part.startsWith('**') && part.endsWith('**') ? (
                           <strong key={i}>{part.slice(2, -2)}</strong>
@@ -1019,8 +1039,8 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
             ))}
 
             {isTyping && (
-              <div className="flex items-start gap-3 animate-in fade-in">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full overflow-hidden">
+              <div className="flex items-start gap-2 md:gap-3 animate-in fade-in">
+                <div className="flex h-12 w-12 md:h-14 md:w-14 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full overflow-hidden">
                   <div className="h-full w-full flex items-center justify-center bg-white rounded-full p-0.5 shadow-sm overflow-hidden">
                         <Image
                           src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face&bg=FFE5E5"
@@ -1031,7 +1051,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                         />
                   </div>
                 </div>
-                <div className="rounded-2xl px-5 py-3 bg-muted">
+                <div className="rounded-2xl px-4 py-2.5 md:px-5 md:py-3 bg-muted">
                   <div className="flex gap-1">
                     <div className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.3s]" />
                     <div className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.15s]" />
@@ -1054,7 +1074,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                         />
                   </div>
                 </div>
-                <div className="rounded-2xl px-5 py-3 bg-muted">
+                <div className="rounded-2xl px-4 py-2.5 md:px-5 md:py-3 bg-muted">
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-5 w-5 text-primary animate-spin" />
                     <span className="text-sm text-muted-foreground">Calculando orçamento...</span>
@@ -1078,18 +1098,18 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
       <Card className="max-w-3xl mx-auto bg-card/80 backdrop-blur-sm border-2 shadow-2xl font-[family-name:var(--font-montserrat)]">
         <div className="flex flex-col max-h-[80vh] lg:max-h-[600px]">
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto scrollbar-hide p-6 space-y-4 min-h-0">
+          <div className="flex-1 overflow-y-auto scrollbar-hide p-4 md:p-6 space-y-3 md:space-y-4 min-h-0">
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={cn(
-                  "flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500",
+                  "flex items-start gap-2 md:gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500",
                   message.type === "user" ? "flex-row-reverse" : "flex-row",
                 )}
               >
                 <div
                   className={cn(
-                    "flex h-16 w-16 shrink-0 items-center justify-center rounded-full overflow-hidden",
+                    "flex h-12 w-12 md:h-14 md:w-14 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full overflow-hidden",
                     message.type === "bot" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
                   )}
                 >
@@ -1104,17 +1124,17 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                         />
                     </div>
                   ) : (
-                    <User className="h-8 w-8" />
+                    <User className="h-6 w-6 md:h-7 md:w-7 lg:h-8 lg:w-8" />
                   )}
                 </div>
                 <div className="flex flex-col gap-1 max-w-[80%]">
                   <div
                     className={cn(
-                      "rounded-2xl px-5 py-3 shadow-sm relative",
+                      "rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm relative",
                       message.type === "bot" ? "bg-muted text-foreground" : "bg-primary text-primary-foreground",
                     )}
                   >
-                    <p className="text-xl leading-relaxed font-medium">
+                    <p className="text-base md:text-lg lg:text-xl leading-relaxed font-medium">
                       {message.text.split(/(\*\*.*?\*\*)/g).map((part, i) => 
                         part.startsWith('**') && part.endsWith('**') ? (
                           <strong key={i}>{part.slice(2, -2)}</strong>
@@ -1152,8 +1172,8 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
             ))}
 
             {isTyping && (
-              <div className="flex items-start gap-3 animate-in fade-in">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full overflow-hidden">
+              <div className="flex items-start gap-2 md:gap-3 animate-in fade-in">
+                <div className="flex h-12 w-12 md:h-14 md:w-14 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full overflow-hidden">
                   <div className="h-full w-full flex items-center justify-center bg-white rounded-full p-0.5 shadow-sm overflow-hidden">
                         <Image
                           src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face&bg=FFE5E5"
@@ -1164,7 +1184,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                         />
                   </div>
                 </div>
-                <div className="rounded-2xl px-5 py-3 bg-muted">
+                <div className="rounded-2xl px-4 py-2.5 md:px-5 md:py-3 bg-muted">
                   <div className="flex gap-1">
                     <div className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.3s]" />
                     <div className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.15s]" />
@@ -1187,7 +1207,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                         />
                   </div>
                 </div>
-                <div className="rounded-2xl px-5 py-3 bg-muted">
+                <div className="rounded-2xl px-4 py-2.5 md:px-5 md:py-3 bg-muted">
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-5 w-5 text-primary animate-spin" />
                     <span className="text-sm text-muted-foreground">Calculando orçamento...</span>
@@ -1202,21 +1222,21 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
           {/* Pergunta sobre lista de objetos */}
           {mostrarPerguntaLista && !isTyping && !loading && (
             <div className="border-t bg-background/50 p-4 space-y-3 flex-shrink-0">
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => handleResponderLista(true)}
-                  size="lg"
-                  className="flex-1 h-14 text-base font-semibold rounded-xl shadow-md bg-orange-500 hover:bg-orange-600 text-white hover:brightness-110 transition-all duration-200 hover:shadow-lg"
-                >
-                  Sim, quero enviar
-                </Button>
+              <div className="flex flex-col md:flex-row gap-3 md:gap-3 justify-end">
                 <Button
                   onClick={() => handleResponderLista(false)}
                   size="lg"
                   variant="outline"
-                  className="flex-1 h-14 text-base font-semibold rounded-xl"
+                  className="w-full md:w-auto md:flex-1 h-14 text-base font-semibold rounded-xl order-2 md:order-1"
                 >
                   Não, pode calcular
+                </Button>
+                <Button
+                  onClick={() => handleResponderLista(true)}
+                  size="lg"
+                  className="w-full md:w-auto md:flex-1 h-14 text-base font-semibold rounded-xl shadow-md bg-orange-500 hover:bg-orange-600 text-white hover:brightness-110 transition-all duration-200 hover:shadow-lg order-1 md:order-2"
+                >
+                  Sim, quero enviar
                 </Button>
               </div>
             </div>
@@ -1249,11 +1269,11 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                 <Button
                   type="submit"
                   size="lg"
-                  className="h-14 px-6 text-base font-semibold rounded-xl shadow-md bg-orange-500 hover:bg-orange-600 text-white hover:brightness-110 transition-all duration-200 hover:shadow-lg"
+                  className="h-14 w-14 md:w-auto md:px-6 text-base font-semibold rounded-xl shadow-md bg-green-500 hover:bg-green-600 text-white hover:brightness-110 transition-all duration-200 hover:shadow-lg flex items-center justify-center"
                   disabled={!listaObjetos.trim()}
                 >
-                  Enviar
-                  <ChevronRight className="ml-2 h-4 w-4" />
+                  <span className="hidden md:inline">Enviar</span>
+                  <ChevronRight className={cn("h-5 w-5", "md:ml-2 md:h-4 md:w-4")} />
                 </Button>
               </form>
               {erro && (
@@ -1304,11 +1324,11 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
                 <Button
                   type="submit"
                   size="lg"
-                  className="h-14 px-6 text-base font-semibold rounded-xl shadow-md bg-orange-500 hover:bg-orange-600 text-white hover:brightness-110 transition-all duration-200 hover:shadow-lg"
+                  className="h-14 w-14 md:w-auto md:px-6 text-base font-semibold rounded-xl shadow-md bg-green-500 hover:bg-green-600 text-white hover:brightness-110 transition-all duration-200 hover:shadow-lg flex items-center justify-center"
                   disabled={!inputValue.trim() && !etapaContatoAtualData.opcional}
                 >
-                  Enviar
-                  <ChevronRight className="ml-2 h-4 w-4" />
+                  <span className="hidden md:inline">Enviar</span>
+                  <ChevronRight className={cn("h-5 w-5", "md:ml-2 md:h-4 md:w-4")} />
                 </Button>
               </form>
               {erro && (

@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { Header } from './new/Header';
 import { Footer } from './new/Footer';
+import { cn } from '@/lib/utils';
 
 export default function ConditionalLayout({
   children,
@@ -11,6 +12,8 @@ export default function ConditionalLayout({
 }) {
   const pathname = usePathname();
   const isAdminRoute = pathname?.startsWith('/admin');
+  const hideFooter = pathname?.startsWith('/calculadorateste');
+  const isCalculadoraTeste = pathname?.startsWith('/calculadorateste');
 
   if (isAdminRoute) {
     return <>{children}</>;
@@ -19,8 +22,8 @@ export default function ConditionalLayout({
   return (
     <>
       <Header />
-      <main className="flex-grow pt-20">{children}</main>
-      <Footer />
+      <main className={cn("flex-grow", isCalculadoraTeste ? "pt-0" : "pt-20")}>{children}</main>
+      {!hideFooter && <Footer />}
     </>
   );
 }
