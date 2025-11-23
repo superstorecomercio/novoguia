@@ -183,6 +183,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
   const [isTyping, setIsTyping] = useState(false)
   const [showIntro, setShowIntro] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputAreaRef = useRef<HTMLDivElement>(null)
 
   const [contatoData, setContatoData] = useState<ContatoData>({
     nome: "",
@@ -212,12 +213,28 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
     // Usa requestAnimationFrame para garantir que o DOM foi atualizado
     requestAnimationFrame(() => {
       setTimeout(() => {
-        if (messagesEndRef.current) {
-          // No mobile, usar block: "nearest" pode funcionar melhor
-          const isMobile = window.innerWidth < 768
-          messagesEndRef.current.scrollIntoView({ 
-            behavior: "smooth", 
-            block: isMobile ? "nearest" : "end",
+        const isMobile = window.innerWidth < 768
+
+        if (isMobile && inputAreaRef.current) {
+          // No mobile, faz scroll direto para a área de input
+          inputAreaRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+            inline: "nearest"
+          })
+
+          // Scroll extra da página para garantir visibilidade total
+          setTimeout(() => {
+            window.scrollTo({
+              top: document.documentElement.scrollHeight,
+              behavior: "smooth"
+            })
+          }, 200)
+        } else if (messagesEndRef.current) {
+          // No desktop, scroll para o final das mensagens
+          messagesEndRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
             inline: "nearest"
           })
         }
@@ -899,7 +916,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
 
           {/* Input Area */}
           {etapaAtual >= 0 && !isTyping && !loading && messages.length > 0 && etapaAtualData && (
-            <div className="border-t bg-background/50 p-4 space-y-3">
+            <div ref={inputAreaRef} className="border-t bg-background/50 p-4 space-y-3">
               {etapaAtualData.tipo === "select" && etapaAtualData.opcoes ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {etapaAtualData.opcoes.map((opcao) => (
@@ -1221,7 +1238,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
 
           {/* Pergunta sobre lista de objetos */}
           {mostrarPerguntaLista && !isTyping && !loading && (
-            <div className="border-t bg-background/50 p-4 space-y-3 flex-shrink-0">
+            <div ref={inputAreaRef} className="border-t bg-background/50 p-4 space-y-3 flex-shrink-0">
               <div className="flex flex-col md:flex-row gap-3 md:gap-3 justify-end">
                 <Button
                   onClick={() => handleResponderLista(false)}
@@ -1244,7 +1261,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
 
           {/* Input Area para Lista de Objetos */}
           {coletandoListaObjetos && !isTyping && !loading && (
-            <div className="border-t bg-background/50 p-4 space-y-3 flex-shrink-0">
+            <div ref={inputAreaRef} className="border-t bg-background/50 p-4 space-y-3 flex-shrink-0">
               <form
                 onSubmit={(e) => {
                   e.preventDefault()
@@ -1286,7 +1303,7 @@ export function InstantCalculatorHybridTeste({ onEstadoChange }: InstantCalculat
 
           {/* Input Area - Formato conversacional */}
           {etapaContatoAtual >= 0 && !isTyping && !loading && messages.length > 0 && etapaContatoAtualData && !mostrarPerguntaLista && !coletandoListaObjetos && (
-            <div className="border-t bg-background/50 p-4 space-y-3 flex-shrink-0">
+            <div ref={inputAreaRef} className="border-t bg-background/50 p-4 space-y-3 flex-shrink-0">
               <form
                 onSubmit={(e) => {
                   e.preventDefault()
