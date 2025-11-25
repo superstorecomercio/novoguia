@@ -25,7 +25,7 @@ export async function generateMetadata({
   }
 
   return {
-    title: `Empresas de Carreto em ${city.name} - ${city.state} | Guia de Mudanças`,
+    title: `Empresas de Carreto em ${city.name} - ${city.state} | MudaTech`,
     description: `Encontre empresas de carreto em ${city.name}, ${city.state}. Transporte rápido e seguro para seus móveis e objetos.`,
   };
 }

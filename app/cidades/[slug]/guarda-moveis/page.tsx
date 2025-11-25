@@ -25,7 +25,7 @@ export async function generateMetadata({
   }
 
   return {
-    title: `Guarda-Móveis em ${city.name} - ${city.state} | Guia de Mudanças`,
+    title: `Guarda-Móveis em ${city.name} - ${city.state} | MudaTech`,
     description: `Encontre empresas de guarda-móveis e self storage em ${city.name}, ${city.state}. Armazenamento seguro para seus pertences.`,
   };
 }

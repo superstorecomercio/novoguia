@@ -20,7 +20,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Guia de Mudanças - Encontre empresas de mudança",
+  title: "MudaTech - Encontre empresas de mudança",
   description: "Encontre as melhores empresas de mudança na sua região. Compare preços e serviços.",
 };
 

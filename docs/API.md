@@ -2,7 +2,7 @@
 
 ## Visão Geral
 
-A API do Guia de Mudanças é construída com Next.js API Routes. Todos os endpoints retornam JSON e seguem convenções RESTful.
+A API do MudaTech é construída com Next.js API Routes. Todos os endpoints retornam JSON e seguem convenções RESTful.
 
 **Base URL**: `http://localhost:3000/api` (desenvolvimento)
 

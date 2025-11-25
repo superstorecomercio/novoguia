@@ -6,10 +6,10 @@ const QuemSomosPage = () => {
       <div className="prose prose-lg max-w-none">
         <section className="mb-8">
           <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            Sobre o Guia de Mudanças
+            Sobre o MudaTech
           </h2>
           <p className="text-gray-700 leading-relaxed mb-4">
-            O Guia de Mudanças é uma plataforma dedicada a conectar pessoas que
+            O MudaTech é uma plataforma dedicada a conectar pessoas que
             precisam de serviços de mudança com empresas confiáveis e
             especializadas em todo o Brasil.
           </p>

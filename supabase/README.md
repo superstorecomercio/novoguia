@@ -1,6 +1,6 @@
-# Supabase - Guia de Mudanças
+# Supabase - MudaTech
 
-Este diretório contém as configurações e migrations do Supabase para o projeto Guia de Mudanças.
+Este diretório contém as configurações e migrations do Supabase para o projeto MudaTech.
 
 ## Estrutura
 

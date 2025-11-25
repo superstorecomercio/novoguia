@@ -115,7 +115,7 @@ export default function OrcamentoWizard({ initialData, onComplete }: OrcamentoWi
   const getIaQuestion = (): string => {
     switch (currentStep) {
       case 1:
-        return 'Oi! 👋 Eu sou o assistente inteligente do Guia de Mudanças. Primeiro, me conta que tipo de serviço você precisa hoje?';
+        return 'Oi! 👋 Eu sou o assistente inteligente do MudaTech. Primeiro, me conta que tipo de serviço você precisa hoje?';
       case 2:
         return 'Perfeito! Agora, de qual cidade seus móveis vão sair?';
       case 3:
@@ -263,7 +263,7 @@ export default function OrcamentoWizard({ initialData, onComplete }: OrcamentoWi
             </div>
             <div className="flex-1">
               <p className="text-white font-semibold text-base">
-                Assistente Guia de Mudanças
+                Assistente MudaTech
               </p>
               <p className="text-blue-100 text-xs flex items-center gap-1">
                 <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>

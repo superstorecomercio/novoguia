@@ -1,6 +1,6 @@
 # Guia de Contribuição
 
-Obrigado pelo interesse em contribuir com o Guia de Mudanças! Este documento descreve as diretrizes e padrões para contribuições.
+Obrigado pelo interesse em contribuir com o MudaTech! Este documento descreve as diretrizes e padrões para contribuições.
 
 ## Configuração do Ambiente
 

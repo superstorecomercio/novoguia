@@ -1,10 +1,10 @@
-# 📚 Contexto Completo do Projeto - Guia de Mudanças
+# 📚 Contexto Completo do Projeto - MudaTech
 
 **Última atualização:** 2025-01-15
 
 ## 🎯 Visão Geral
 
-O **Guia de Mudanças** é uma plataforma Next.js que conecta clientes que precisam de serviços de mudança com empresas especializadas. O sistema permite que empresas anunciem seus serviços e recebam orçamentos qualificados de clientes.
+O **MudaTech** é uma plataforma Next.js que conecta clientes que precisam de serviços de mudança com empresas especializadas. O sistema permite que empresas anunciem seus serviços e recebam orçamentos qualificados de clientes.
 
 ## 🛠️ Stack Tecnológica
 
@@ -20,7 +20,7 @@ O **Guia de Mudanças** é uma plataforma Next.js que conecta clientes que preci
 ## 📁 Estrutura de Pastas
 
 ```
-guia-de-mudancas-next/
+mudatech-next/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API Routes
 │   │   └── calcular-orcamento/   # API de cálculo de orçamentos

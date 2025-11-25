@@ -1,6 +1,6 @@
 # 🎯 SISTEMA DE ORÇAMENTOS - DOCUMENTAÇÃO COMPLETA
 
-**Projeto:** Guia de Mudanças  
+**Projeto:** MudaTech  
 **Data:** 22 de Novembro de 2025  
 **Status:** ✅ 100% FUNCIONAL
 

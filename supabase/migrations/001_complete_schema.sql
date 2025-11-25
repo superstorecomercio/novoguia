@@ -1,5 +1,5 @@
 -- ============================================
--- GUIA DE MUDANÇAS - SCHEMA COMPLETO
+-- MUDATECH - SCHEMA COMPLETO
 -- ============================================
 -- Execute este arquivo completo no Supabase SQL Editor
 -- Contém: Schema + Dados Iniciais + Funções Auxiliares

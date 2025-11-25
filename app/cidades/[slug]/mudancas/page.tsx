@@ -25,7 +25,7 @@ export async function generateMetadata({
   }
 
   return {
-    title: `Empresas de Mudança em ${city.name} - ${city.state} | Guia de Mudanças`,
+    title: `Empresas de Mudança em ${city.name} - ${city.state} | MudaTech`,
     description: `Encontre as melhores empresas de mudança em ${city.name}, ${city.state}. Compare preços, serviços e solicite orçamentos gratuitos.`,
   };
 }

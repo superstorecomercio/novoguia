@@ -1,5 +1,5 @@
 -- ============================================
--- SISTEMA DE ORÇAMENTOS - GUIA DE MUDANÇAS
+-- SISTEMA DE ORÇAMENTOS - MUDATECH
 -- Versão Final Consolidada
 -- Data: 22 de Novembro de 2025
 -- ============================================

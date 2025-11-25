@@ -24,7 +24,7 @@ const plano = {
   descricao: 'Plano completo para sua empresa de mudanças',
   beneficios: [
     'Orçamentos qualificados mensalmente',
-    'Perfil completo no Guia de Mudanças',
+    'Perfil completo no MudaTech',
     'Listagem destacada em páginas de cidades',
     'Suporte prioritário',
     'Atualização de dados quando necessário',
@@ -79,7 +79,7 @@ export default function PlanosPage() {
               Planos para anunciar sua empresa de mudanças
             </h1>
             <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-              Receba orçamentos qualificados através do Guia de Mudanças. 
+              Receba orçamentos qualificados através do MudaTech. 
               Escolha o plano ideal para sua empresa e comece a crescer hoje mesmo.
             </p>
 

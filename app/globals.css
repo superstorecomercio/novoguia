@@ -15,7 +15,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.242 0.025 268.9);
 
-  /* Updated primary to match orange from Guia de Mudanças (#FF7A33) */
+  /* Updated primary to match orange from MudaTech (#FF7A33) */
   --primary: oklch(0.703 0.156 37.82);
   --primary-foreground: oklch(1 0 0);
 
