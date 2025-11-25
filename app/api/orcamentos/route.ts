@@ -21,6 +21,8 @@ export async function POST(request: NextRequest) {
       nome: formData.nomeCliente,
       origem: formData.cidadeOrigem,
       destino: formData.cidadeDestino,
+      estadoOrigem: formData.estadoOrigem,
+      estadoDestino: formData.estadoDestino,
     });
 
     // Validar dados obrigatórios
@@ -88,10 +90,29 @@ export async function POST(request: NextRequest) {
     };
 
     console.log('🚀 [API Orçamentos] Chamando criarOrcamentoENotificar...');
-    console.log('📦 Dados:', {
-      ...dadosOrcamento,
+    console.log('📦 Dados preparados para RPC:', {
+      nome: dadosOrcamento.nome,
+      email: dadosOrcamento.email,
+      estadoOrigem: dadosOrcamento.estadoOrigem,
+      estadoDestino: dadosOrcamento.estadoDestino,
+      cidadeOrigem: dadosOrcamento.cidadeOrigem,
+      cidadeDestino: dadosOrcamento.cidadeDestino,
+      origem: dadosOrcamento.origem,
+      destino: dadosOrcamento.destino,
       listaObjetos: dadosOrcamento.listaObjetos?.substring(0, 50) + '...'
     });
+    
+    // ⚠️ VALIDAÇÃO CRÍTICA: Verificar se estadoDestino está presente
+    if (!dadosOrcamento.estadoDestino || dadosOrcamento.estadoDestino.trim() === '') {
+      console.error('❌ [API Orçamentos] ERRO: estadoDestino está vazio ou não foi enviado!');
+      return NextResponse.json(
+        { 
+          error: 'Estado de destino é obrigatório e não foi fornecido',
+          hint: 'Verifique se o webhook do WhatsApp está enviando o campo estadoDestino'
+        },
+        { status: 400 }
+      );
+    }
 
     // ✅ Usar função RPC que cria vínculos automaticamente
     const resultado = await criarOrcamentoENotificar(dadosOrcamento);
@@ -99,8 +120,18 @@ export async function POST(request: NextRequest) {
     console.log('✅ [API Orçamentos] Orçamento criado:', {
       id: resultado.orcamentoId,
       hotsites: resultado.hotsitesNotificados,
-      ids: resultado.hotsitesIds
+      ids: resultado.hotsitesIds,
+      estadoDestino: dadosOrcamento.estadoDestino
     });
+    
+    // ⚠️ ALERTA: Se hotsites_notificados = 0, pode haver problema
+    if (resultado.hotsitesNotificados === 0) {
+      console.warn('⚠️ [API Orçamentos] ATENÇÃO: Nenhuma empresa foi notificada!', {
+        orcamentoId: resultado.orcamentoId,
+        estadoDestino: dadosOrcamento.estadoDestino,
+        hint: 'Verificar se há campanhas ativas no estado ou se o estado está correto'
+      });
+    }
 
     // TODO: Enviar emails para empresas
     // await sendEmailsToEmpresas(resultado.orcamentoId);
