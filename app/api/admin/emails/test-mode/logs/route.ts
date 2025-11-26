@@ -11,7 +11,7 @@ export async function GET() {
     const { data: allTestLogs, error: allError } = await supabase
       .from('email_tracking')
       .select('*')
-      .eq('template_tipo', 'teste_configuracao')
+      .eq('tipo_email', 'teste_configuracao') // Usar tipo_email ao invés de template_tipo
       .order('enviado_em', { ascending: false })
       .limit(100)
     

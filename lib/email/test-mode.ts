@@ -166,9 +166,9 @@ export async function interceptTestEmail(
     // Gerar código de rastreamento único
     const codigoRastreamento = `TEST-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`
     
-    const { data, error } = await supabase.from('email_tracking').insert({
+    const { data, error } =     await supabase.from('email_tracking').insert({
       codigo_rastreamento: codigoRastreamento,
-      template_tipo: 'teste_configuracao',
+      tipo_email: 'teste_configuracao', // Usar tipo_email ao invés de template_tipo
       destinatario_email: Array.isArray(originalTo) ? originalTo.join(', ') : originalTo,
       assunto: options.subject,
       status_envio: 'enviado',
@@ -230,11 +230,11 @@ export async function getTestEmailLogs(): Promise<TestEmailLog[]> {
     const { createAdminClient } = await import('@/lib/supabase/server')
     const supabase = createAdminClient()
     
-    // Buscar logs de teste do banco - corrigir query
+    // Buscar logs de teste do banco - usar tipo_email ao invés de template_tipo
     const { data, error } = await supabase
       .from('email_tracking')
       .select('*')
-      .or('template_tipo.eq.teste_configuracao,and(status_envio.eq.enviado,metadata->modo_teste.eq.true)')
+      .or('tipo_email.eq.teste_configuracao,and(status_envio.eq.enviado,metadata->modo_teste.eq.true)')
       .order('enviado_em', { ascending: false })
       .limit(100)
     

@@ -61,7 +61,7 @@ export async function sendEmail(
       
       await supabase.from('email_tracking').insert({
         codigo_rastreamento: codigoRastreamento,
-        template_tipo: 'email_enviado',
+        tipo_email: 'email_enviado', // Usar tipo_email ao invés de template_tipo
         destinatario_email: Array.isArray(options.to) ? options.to.join(', ') : options.to,
         assunto: options.subject,
         status_envio: 'enviado',
@@ -93,7 +93,7 @@ export async function sendEmail(
       
       await supabase.from('email_tracking').insert({
         codigo_rastreamento: codigoRastreamento,
-        template_tipo: 'email_erro',
+        tipo_email: 'email_erro', // Usar tipo_email ao invés de template_tipo
         destinatario_email: Array.isArray(options.to) ? options.to.join(', ') : options.to,
         assunto: options.subject,
         status_envio: 'erro',
