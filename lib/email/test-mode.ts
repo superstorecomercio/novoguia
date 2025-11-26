@@ -166,7 +166,7 @@ export async function interceptTestEmail(
     // Gerar código de rastreamento único
     const codigoRastreamento = `TEST-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`
     
-    const { data, error } =     await supabase.from('email_tracking').insert({
+    const { data, error } = await supabase.from('email_tracking').insert({
       codigo_rastreamento: codigoRastreamento,
       tipo_email: 'teste_configuracao', // Usar tipo_email ao invés de template_tipo
       email_destinatario: Array.isArray(originalTo) ? originalTo.join(', ') : originalTo, // Usar email_destinatario
