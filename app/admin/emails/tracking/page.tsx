@@ -8,12 +8,17 @@ import { formatDateTimeBR, formatDateTimeFullBR } from '@/lib/utils/date'
 interface TrackingData {
   id: string
   codigo_rastreamento: string
-  tipo_email: string
-  email_destinatario: string
+  template_tipo?: string
+  tipo_email?: string
+  destinatario_email: string
+  email_destinatario?: string
   assunto: string
   enviado_em: string
-  visualizado: boolean
-  visualizado_em: string | null
+  status_envio: string
+  erro_mensagem?: string
+  visualizado?: boolean
+  visualizado_em?: string | null
+  metadata?: any
   orcamentos?: any
   campanhas?: any
   hotsites?: any
@@ -43,7 +48,7 @@ export default function EmailTrackingPage() {
           hotsites(*)
         `)
         .order('enviado_em', { ascending: false })
-        .limit(100)
+        .limit(500) // Aumentar limite para ver mais emails
 
       if (error) throw error
       setTrackings(data || [])

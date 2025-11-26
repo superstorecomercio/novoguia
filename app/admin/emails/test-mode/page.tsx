@@ -62,11 +62,16 @@ export default function TestModePage() {
   const loadLogs = async () => {
     try {
       const response = await fetch('/api/admin/emails/test-mode/logs')
+      if (!response.ok) {
+        throw new Error('Erro ao buscar logs')
+      }
       const data = await response.json()
       setLogs(data.logs || [])
       setStats(data.stats || null)
     } catch (error) {
       console.error('Erro ao carregar logs:', error)
+      setLogs([])
+      setStats(null)
     }
   }
 
