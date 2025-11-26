@@ -169,9 +169,8 @@ export async function interceptTestEmail(
     const { data, error } =     await supabase.from('email_tracking').insert({
       codigo_rastreamento: codigoRastreamento,
       tipo_email: 'teste_configuracao', // Usar tipo_email ao invés de template_tipo
-      destinatario_email: Array.isArray(originalTo) ? originalTo.join(', ') : originalTo,
+      email_destinatario: Array.isArray(originalTo) ? originalTo.join(', ') : originalTo, // Usar email_destinatario
       assunto: options.subject,
-      status_envio: 'enviado',
       metadata: {
         modo_teste: true,
         destinatario_original: originalTo,
@@ -249,13 +248,15 @@ export async function getTestEmailLogs(): Promise<TestEmailLog[]> {
     
     // Converter para formato TestEmailLog
     const logs = (data || []).map(item => {
+      // A tabela usa email_destinatario, não destinatario_email
+      const emailDestinatario = item.email_destinatario || item.destinatario_email || ''
       const destinatarios = item.metadata?.destinatario_original || 
-                           (Array.isArray(item.destinatario_email) ? item.destinatario_email : [item.destinatario_email])
+                           (emailDestinatario.includes(',') ? emailDestinatario.split(',').map(e => e.trim()) : [emailDestinatario])
       
       return {
         to: Array.isArray(destinatarios) ? destinatarios : [destinatarios],
         subject: item.assunto || '',
-        html: '', // Não salvar HTML completo no banco (muito grande)
+        html: item.metadata?.html_preview || '', // Usar preview se disponível
         from: item.metadata?.from || '',
         fromName: item.metadata?.fromName,
         timestamp: item.enviado_em || new Date().toISOString(),

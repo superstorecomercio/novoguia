@@ -22,11 +22,10 @@ export async function GET() {
       console.error('❌ Erro na query direta:', allError)
     }
     
-    // Também buscar por metadata
+    // Também buscar por metadata (sem filtro de status_envio que não existe)
     const { data: metadataLogs, error: metadataError } = await supabase
       .from('email_tracking')
       .select('*')
-      .eq('status_envio', 'enviado')
       .contains('metadata', { modo_teste: true })
       .order('enviado_em', { ascending: false })
       .limit(100)

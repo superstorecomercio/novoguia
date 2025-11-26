@@ -62,15 +62,15 @@ export async function sendEmail(
       await supabase.from('email_tracking').insert({
         codigo_rastreamento: codigoRastreamento,
         tipo_email: 'email_enviado', // Usar tipo_email ao invés de template_tipo
-        destinatario_email: Array.isArray(options.to) ? options.to.join(', ') : options.to,
+        email_destinatario: Array.isArray(options.to) ? options.to.join(', ') : options.to, // Usar email_destinatario
         assunto: options.subject,
-        status_envio: 'enviado',
         metadata: {
           provider: 'socketlabs',
           from: options.from,
           fromName: options.fromName,
           messageId: response.transactionReceipt || response.messageId,
-          modo_teste: false
+          modo_teste: false,
+          status_envio: 'enviado' // Salvar status no metadata já que não há coluna status_envio
         }
       })
     } catch (error) {
@@ -94,16 +94,16 @@ export async function sendEmail(
       await supabase.from('email_tracking').insert({
         codigo_rastreamento: codigoRastreamento,
         tipo_email: 'email_erro', // Usar tipo_email ao invés de template_tipo
-        destinatario_email: Array.isArray(options.to) ? options.to.join(', ') : options.to,
+        email_destinatario: Array.isArray(options.to) ? options.to.join(', ') : options.to, // Usar email_destinatario
         assunto: options.subject,
-        status_envio: 'erro',
-        erro_mensagem: error.message || error.errorMessage || 'Erro desconhecido',
         metadata: {
           provider: 'socketlabs',
           from: options.from,
           fromName: options.fromName,
           errorCode: error.code,
-          modo_teste: false
+          modo_teste: false,
+          status_envio: 'erro', // Salvar status no metadata
+          erro_mensagem: error.message || error.errorMessage || 'Erro desconhecido'
         }
       })
     } catch (logError) {
