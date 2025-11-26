@@ -28,6 +28,7 @@ export async function sendEmail(
 
   try {
     // Dynamic import para evitar erro se o pacote não estiver instalado
+    // @ts-ignore - Dynamic import pode não estar disponível e tipos podem não existir
     const { SocketLabsClient, EmailAddress, BasicMessage } = await import('@socketlabs/email')
     
     const client = new SocketLabsClient(config.serverId, config.apiKey)
