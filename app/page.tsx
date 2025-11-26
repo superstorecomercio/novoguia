@@ -276,7 +276,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-animated">
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-8 md:py-32 pt-20 md:pt-16">
+      <section className="container mx-auto px-4 py-8 md:py-32 pt-12 md:pt-16">
         <div className="max-w-4xl mx-auto text-center">
           {/* Badge: Comparar e Receber Cotações */}
           <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-white/20 px-3 py-1.5 md:px-4 md:py-2 rounded-full mb-6 md:mb-8 animate-fade-in-up shadow-lg">
@@ -342,7 +342,7 @@ export default function Home() {
       </section>
 
       {/* How It Works */}
-      <section className="bg-white/95 backdrop-blur-sm py-24 md:py-36">
+      <section id="como-funciona" className="bg-white/95 backdrop-blur-sm py-24 md:py-36">
         <div className="container mx-auto px-4">
           <h2 className="text-4xl md:text-6xl font-extrabold text-center text-gray-900 mb-16 md:mb-20">Como Funciona</h2>
           <div className="grid md:grid-cols-3 gap-6 md:gap-12 max-w-5xl mx-auto">
@@ -501,6 +501,27 @@ export default function Home() {
             >
               <MapPin className="w-5 h-5" />
               Ver todas as cidades
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Anuncie sua empresa */}
+      <section className="bg-white/95 backdrop-blur-sm py-24 md:py-36">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-6 md:mb-8 text-balance">
+              Anuncie sua empresa
+            </h2>
+            <p className="text-lg md:text-xl text-gray-600 mb-8 md:mb-10">
+              Aumente sua visibilidade e receba mais orçamentos de clientes qualificados
+            </p>
+            <Link href="/orcamento">
+              <button
+                className="bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white text-lg md:text-xl px-12 md:px-[60px] py-4 md:py-[25px] rounded-2xl shadow-[0_10px_40px_rgba(102,126,234,0.4)] hover:shadow-[0_15px_50px_rgba(102,126,234,0.6)] hover:scale-110 transition-all duration-300 font-extrabold"
+              >
+                📢 Cadastrar Empresa
+              </button>
             </Link>
           </div>
         </div>
