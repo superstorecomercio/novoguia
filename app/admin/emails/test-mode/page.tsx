@@ -174,7 +174,7 @@ EMAIL_TEST_TO=seu-email@exemplo.com`}
                 }
                 {testModeActive && stats?.lastEmail && (
                   <span className="block mt-2">
-                    <strong>Último email interceptado:</strong> {formatDate(stats.lastEmail.timestamp)}
+                    <strong>Último email interceptado:</strong> {formatDateTimeBR(stats.lastEmail.timestamp)}
                   </span>
                 )}
               </p>
@@ -266,7 +266,7 @@ EMAIL_TEST_TO=seu-email@exemplo.com`}
                           {log.provider}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {formatDate(log.timestamp)}
+                          {formatDateTimeBR(log.timestamp)}
                         </span>
                       </div>
                       <p className="font-medium text-gray-900 mb-1">{log.subject}</p>

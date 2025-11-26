@@ -202,7 +202,7 @@ export default async function OrcamentoDetalhesPage({ params }: { params: Promis
                 <p className="text-gray-900 font-medium flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   {orcamento.data_estimada 
-                    ? new Date(orcamento.data_estimada).toLocaleDateString('pt-BR')
+                    ? formatDateOnlyBR(orcamento.data_estimada)
                     : 'Sem seleção'}
                 </p>
               </div>
