@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isTestMode, getTestEmail } from '@/lib/email/test-mode'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { provider, api_key, server_id, from_email, from_name } = await request.json()
+    const { provider, api_key, server_id, from_email, from_name, test_email } = await request.json()
 
     if (!provider || !api_key || !from_email) {
       return NextResponse.json(
@@ -17,6 +19,19 @@ export async function POST(request: NextRequest) {
         { error: 'Server ID é obrigatório para SocketLabs' },
         { status: 400 }
       )
+    }
+
+    // Verificar se está em modo de teste
+    const testModeActive = isTestMode()
+    
+    // Determinar email de destino
+    let testEmailTo: string
+    if (testModeActive) {
+      // Se modo de teste ativo, usar email de teste configurado
+      testEmailTo = test_email || getTestEmail()
+    } else {
+      // Se não está em modo de teste, usar email do admin ou from_email
+      testEmailTo = process.env.ADMIN_EMAIL || test_email || from_email
     }
 
     // Importar o serviço de email apropriado
@@ -47,32 +62,58 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Enviar email de teste
-    const testEmail = process.env.ADMIN_EMAIL || from_email
-    
     // Configuração específica por provedor
     let config: any = { apiKey: api_key }
     if (provider === 'socketlabs') {
       config = { serverId: server_id, apiKey: api_key }
     }
     
+    // HTML do email de teste
+    const testModeWarning = testModeActive ? `
+      <div style="background: #fef3c7; border: 2px solid #f59e0b; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+        <strong style="color: #92400e;">⚠️ MODO DE TESTE ATIVO</strong>
+        <p style="color: #78350f; margin: 5px 0 0 0; font-size: 14px;">
+          Este email foi enviado em modo de teste. Em produção, este email seria enviado normalmente.
+        </p>
+      </div>
+    ` : ''
+    
     const result = await emailService.sendEmail({
-      to: testEmail,
+      to: testEmailTo,
       subject: 'Teste de Configuração - MudaTech',
       html: `
+        ${testModeWarning}
         <h2>Email de Teste</h2>
         <p>Este é um email de teste da configuração de envio de emails do MudaTech.</p>
         <p>Se você recebeu este email, a configuração está funcionando corretamente!</p>
         <hr>
-        <p><small>Enviado em ${new Date().toLocaleString('pt-BR')}</small></p>
+        <p><strong>Detalhes do teste:</strong></p>
+        <ul>
+          <li><strong>Provedor:</strong> ${provider}</li>
+          <li><strong>Remetente:</strong> ${from_email}</li>
+          <li><strong>Destinatário:</strong> ${testEmailTo}</li>
+          <li><strong>Modo de Teste:</strong> ${testModeActive ? 'Ativo (email interceptado)' : 'Desativado (email enviado normalmente)'}</li>
+        </ul>
+        <hr>
+        <p><small>Enviado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</small></p>
       `,
       from: from_email,
       fromName: from_name
     }, config)
 
+    // Mensagem de resposta baseada no modo de teste
+    let message: string
+    if (testModeActive) {
+      message = `Email de teste interceptado em modo de teste. Verifique os logs em /admin/emails/test-mode. Email seria enviado para: ${testEmailTo}`
+    } else {
+      message = `Email de teste enviado com sucesso para ${testEmailTo}`
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Email de teste enviado com sucesso para ${testEmail}`,
+      message,
+      testMode: testModeActive,
+      recipient: testEmailTo,
       result
     })
 

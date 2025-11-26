@@ -237,7 +237,8 @@ export default function EmailConfigPage() {
           api_key: config.api_key,
           server_id: config.server_id,
           from_email: config.from_email,
-          from_name: config.from_name
+          from_name: config.from_name,
+          test_email: config.test_email // Incluir email de teste configurado
         })
       })
 
@@ -247,9 +248,15 @@ export default function EmailConfigPage() {
         throw new Error(data.error || 'Erro ao testar configuração')
       }
 
+      // Mensagem mais informativa baseada no modo de teste
+      let message = data.message || 'Email de teste enviado com sucesso!'
+      if (data.testMode) {
+        message += `\n\n⚠️ Modo de teste está ativo. O email foi interceptado e não foi enviado realmente. Verifique os logs em /admin/emails/test-mode para ver o email interceptado.`
+      }
+
       setTestResult({
         success: true,
-        message: data.message || 'Email de teste enviado com sucesso!'
+        message: message
       })
 
       // Atualizar status de teste
