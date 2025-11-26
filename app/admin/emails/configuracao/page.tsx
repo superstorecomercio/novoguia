@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { getSupabase } from '@/lib/supabaseClient'
 import { Save, TestTube, Mail, CheckCircle2, AlertTriangle, Loader2, Info } from 'lucide-react'
 import Link from 'next/link'
+import { formatDateTimeBR } from '@/lib/utils/date'
 
 interface EmailConfig {
   provider: 'resend' | 'sendgrid' | 'nodemailer' | 'socketlabs' | null
@@ -431,7 +432,7 @@ export default function EmailConfigPage() {
                 </p>
                 {config.ultimo_teste && (
                   <p className="text-xs text-gray-600 mt-1">
-                    Último teste: {new Date(config.ultimo_teste).toLocaleString('pt-BR')}
+                    Último teste: {formatDateTimeBR(config.ultimo_teste)}
                   </p>
                 )}
                 {config.erro_teste && (

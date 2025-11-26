@@ -347,7 +347,7 @@ export default async function OrcamentoDetalhesPage({ params }: { params: Promis
               <div>
                 <label className="text-gray-500">Criado em</label>
                 <p className="text-gray-900 font-medium">
-                  {new Date(orcamento.created_at).toLocaleString('pt-BR')}
+                  {formatDateTimeFullBR(orcamento.created_at)}
                 </p>
               </div>
               <div>

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { CheckCircle2, Clock, AlertTriangle, XCircle, Eye } from 'lucide-react'
 import OrcamentosFilter from '@/app/components/admin/OrcamentosFilter'
 import { Suspense } from 'react'
+import { formatDateOnlyBR, formatTimeOnlyBR, formatDateTimeBR } from '@/lib/utils/date'
 
 export const dynamic = 'force-dynamic'
 
@@ -325,12 +326,9 @@ export default async function OrcamentosPage({
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(orcamento.created_at).toLocaleDateString('pt-BR')}
+                      {formatDateOnlyBR(orcamento.created_at)}
                       <div className="text-xs">
-                        {new Date(orcamento.created_at).toLocaleTimeString('pt-BR', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
+                        {formatTimeOnlyBR(orcamento.created_at)}
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm w-40">
@@ -427,7 +425,7 @@ export default async function OrcamentosPage({
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Data:</span>
                   <span className="font-medium text-gray-900 text-xs">
-                    {new Date(orcamento.created_at).toLocaleDateString('pt-BR')} {new Date(orcamento.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    {formatDateTimeBR(orcamento.created_at)}
                   </span>
                 </div>
               </div>

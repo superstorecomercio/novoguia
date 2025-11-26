@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Mail, Trash2, Eye, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
+import { formatDateTimeBR } from '@/lib/utils/date'
 
 export default function TestModePage() {
   const [logs, setLogs] = useState<any[]>([])
@@ -82,9 +83,7 @@ export default function TestModePage() {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('pt-BR')
-  }
+  // formatDate removido - usando formatDateTimeBR do utils
 
   if (!testModeActive) {
     return (
@@ -330,7 +329,7 @@ EMAIL_TEST_TO=seu-email@exemplo.com`}
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Data/Hora</label>
-                  <p className="mt-1 text-gray-900">{formatDate(selectedLog.timestamp)}</p>
+                  <p className="mt-1 text-gray-900">{formatDateTimeBR(selectedLog.timestamp)}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Provedor</label>

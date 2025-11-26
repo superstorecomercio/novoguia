@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { getSupabase } from '@/lib/supabaseClient'
 import { CheckCircle2, Clock, AlertTriangle, XCircle, Mail, RefreshCw, Send, Search, ChevronDown, ChevronUp, Building2 } from 'lucide-react'
 import Link from 'next/link'
+import { formatDateTimeBR } from '@/lib/utils/date'
 
 interface EmpresaEnvio {
   id: string
@@ -367,7 +368,7 @@ export default function EmailsPage() {
                       <div className="text-sm text-gray-600 space-y-1">
                         <p><span className="font-medium">Email:</span> {orcamento.email_cliente}</p>
                         <p><span className="font-medium">Rota:</span> {orcamento.origem_completo} → {orcamento.destino_completo}</p>
-                        <p><span className="font-medium">Data:</span> {new Date(orcamento.created_at).toLocaleString('pt-BR')}</p>
+                        <p><span className="font-medium">Data:</span> {formatDateTimeBR(orcamento.created_at)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
@@ -457,7 +458,7 @@ export default function EmailsPage() {
                                 )}
                                 {empresa.email_enviado_em && (
                                   <p className="text-green-600">
-                                    Enviado em: {new Date(empresa.email_enviado_em).toLocaleString('pt-BR')}
+                                    Enviado em: {formatDateTimeBR(empresa.email_enviado_em)}
                                   </p>
                                 )}
                                 {empresa.ultimo_erro_envio && (

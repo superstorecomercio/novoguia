@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { getSupabase } from '@/lib/supabaseClient'
 import { Search, Eye, Mail, Calendar, Building2, FileText, AlertCircle } from 'lucide-react'
+import { formatDateTimeBR, formatDateTimeFullBR } from '@/lib/utils/date'
 
 interface TrackingData {
   id: string
@@ -82,9 +83,7 @@ export default function EmailTrackingPage() {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('pt-BR')
-  }
+  // formatDate removido - usando formatDateTimeBR do utils
 
   const getTipoEmailLabel = (tipo: string) => {
     const labels: Record<string, string> = {
@@ -216,7 +215,7 @@ export default function EmailTrackingPage() {
                       {tracking.hotsites?.nome_exibicao || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(tracking.enviado_em)}
+                      {formatDateTimeBR(tracking.enviado_em)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {tracking.visualizado ? (
@@ -301,14 +300,14 @@ export default function EmailTrackingPage() {
                 )}
                 <div>
                   <label className="text-sm font-medium text-gray-700">Enviado em</label>
-                  <p className="mt-1 text-gray-900">{formatDate(selectedTracking.enviado_em)}</p>
+                  <p className="mt-1 text-gray-900">{formatDateTimeBR(selectedTracking.enviado_em)}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Status</label>
                   <p className="mt-1">
                     {selectedTracking.visualizado ? (
                       <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
-                        Visualizado em {selectedTracking.visualizado_em ? formatDate(selectedTracking.visualizado_em) : ''}
+                        Visualizado em {selectedTracking.visualizado_em ? formatDateTimeBR(selectedTracking.visualizado_em) : ''}
                       </span>
                     ) : (
                       <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm font-medium rounded-full">
