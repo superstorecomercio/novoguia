@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   },
   // Evita problemas com trailing slashes nas APIs
   trailingSlash: false,
+  // Excluir pasta painel do build (subprojeto separado)
+  pageExtensions: ['ts', 'tsx', 'js', 'jsx'],
   images: {
     remotePatterns: [
       {

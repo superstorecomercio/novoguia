@@ -53,3 +53,8 @@ nul
 # Logs
 /logs
 *.log
+
+# Painel subproject (subprojeto separado, não deve ser processado pelo Next.js principal)
+app/painel/
+app/_painel/
+painel/
