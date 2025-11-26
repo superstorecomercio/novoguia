@@ -281,7 +281,7 @@ export default function EmailTrackingPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Tipo de Email</label>
-                  <p className="mt-1 text-gray-900">{getTipoEmailLabel(selectedTracking.tipo_email)}</p>
+                  <p className="mt-1 text-gray-900">{getTipoEmailLabel(selectedTracking.template_tipo || selectedTracking.tipo_email || 'email_enviado')}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Destinatário</label>
