@@ -81,7 +81,7 @@ export default function OrcamentosFilter({
     const dateValue = e.target.value
     if (dateValue) {
       const formattedDate = formatDateFromInput(dateValue)
-      updateSearch(formattedDate, 'data')
+      handleSearch(formattedDate, 'data')
     } else {
       clearSearch()
     }
