@@ -276,45 +276,45 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-animated">
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-12 md:py-32 pt-8 md:pt-16">
+      <section className="container mx-auto px-4 py-8 md:py-32 pt-20 md:pt-16">
         <div className="max-w-4xl mx-auto text-center">
           {/* Badge: Comparar e Receber Cotações */}
-          <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-white/20 px-4 py-2 rounded-full mb-8 animate-fade-in-up shadow-lg">
-            <Building2 className="w-4 h-4 text-[#667eea]" />
-            <span className="text-sm font-medium text-gray-800">Compare preços e receba cotações de empresas verificadas</span>
+          <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-white/20 px-3 py-1.5 md:px-4 md:py-2 rounded-full mb-6 md:mb-8 animate-fade-in-up shadow-lg">
+            <Building2 className="w-3 h-3 md:w-4 md:h-4 text-[#667eea]" />
+            <span className="text-xs md:text-sm font-medium text-gray-800">Compare preços e receba cotações de empresas verificadas</span>
           </div>
 
           {/* Rating */}
-          <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg mb-10 animate-fade-in-up animation-delay-100">
-            <div className="flex gap-1">
+          <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm px-4 py-2 md:px-6 md:py-3 rounded-full shadow-lg mb-6 md:mb-10 animate-fade-in-up animation-delay-100">
+            <div className="flex gap-0.5 md:gap-1">
               {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-5 h-5 fill-[#FFD700] text-[#FFD700] drop-shadow-[0_2px_4px_rgba(255,215,0,0.5)] stroke-black stroke-[1]" />
+                <Star key={i} className="w-4 h-4 md:w-5 md:h-5 fill-[#FFD700] text-[#FFD700] drop-shadow-[0_2px_4px_rgba(255,215,0,0.5)] stroke-black stroke-[1]" />
               ))}
             </div>
-            <span className="text-sm font-bold text-gray-900">4.9/5 - Mais de 10.000 orçamentos realizados</span>
+            <span className="text-xs md:text-sm font-bold text-gray-900">4.9/5 - Mais de 10.000 orçamentos realizados</span>
           </div>
 
           {/* Main Title */}
-          <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-8 animate-fade-in-up animation-delay-200 text-balance drop-shadow-[0_4px_12px_rgba(0,0,0,0.3)]">
+          <h1 className="text-3xl md:text-7xl font-extrabold text-white mb-4 md:mb-8 animate-fade-in-up animation-delay-200 text-balance drop-shadow-[0_4px_12px_rgba(0,0,0,0.3)] leading-tight">
             Calcule o preço da sua mudança <span className="text-[#FFD700]">em segundos</span>
           </h1>
 
-          <p className="text-xl md:text-3xl text-white/95 mb-12 animate-fade-in-up animation-delay-300 text-balance font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+          <p className="text-base md:text-3xl text-white/95 mb-8 md:mb-12 animate-fade-in-up animation-delay-300 text-balance font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
             Descubra o valor real da sua mudança em 60 segundos pelo WhatsApp
           </p>
 
           {/* Trust Badges */}
-          <div className="flex flex-wrap justify-center gap-4 md:gap-6 mb-12 text-white animate-fade-in-up animation-delay-400">
-            <div className="flex items-center gap-2 text-sm md:text-base font-semibold">
-              <Check className="w-5 h-5 text-[#FFD700]" />
+          <div className="flex flex-wrap justify-center gap-3 md:gap-6 mb-6 md:mb-12 text-white animate-fade-in-up animation-delay-400">
+            <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-base font-semibold">
+              <Check className="w-4 h-4 md:w-5 md:h-5 text-[#FFD700]" />
               <span>Grátis</span>
             </div>
-            <div className="flex items-center gap-2 text-sm md:text-base font-semibold">
-              <Check className="w-5 h-5 text-[#FFD700]" />
+            <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-base font-semibold">
+              <Check className="w-4 h-4 md:w-5 md:h-5 text-[#FFD700]" />
               <span>Rápido</span>
             </div>
-            <div className="flex items-center gap-2 text-sm md:text-base font-semibold">
-              <Check className="w-5 h-5 text-[#FFD700]" />
+            <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-base font-semibold">
+              <Check className="w-4 h-4 md:w-5 md:h-5 text-[#FFD700]" />
               <span>Sem Cadastro</span>
             </div>
           </div>
@@ -324,18 +324,18 @@ export default function Home() {
             href={WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block animate-fade-in-up animation-delay-500"
+            className="inline-block animate-fade-in-up animation-delay-500 mb-4 md:mb-0"
           >
             <button
-              className="bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white text-xl md:text-2xl px-[60px] py-[25px] rounded-2xl shadow-[0_15px_50px_rgba(37,211,102,0.5)] hover:shadow-[0_20px_60px_rgba(37,211,102,0.7)] hover:scale-110 transition-all duration-300 font-extrabold animate-glow"
+              className="bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white text-base md:text-2xl px-8 md:px-[60px] py-4 md:py-[25px] rounded-2xl shadow-[0_15px_50px_rgba(37,211,102,0.5)] hover:shadow-[0_20px_60px_rgba(37,211,102,0.7)] hover:scale-110 transition-all duration-300 font-extrabold animate-glow w-full md:w-auto"
             >
               💬 Calcular no WhatsApp Grátis
             </button>
           </a>
 
           {/* Urgency Badge - GRADIENT LARANJA/VERMELHO COM FOGO */}
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-[#FF6B35] via-[#FF4500] to-[#FF1744] text-white px-8 py-4 rounded-full font-extrabold mt-8 animate-fade-in-up animation-delay-600 shadow-[0_8px_30px_rgba(255,107,53,0.4)]">
-            <span className="animate-fire text-2xl">🔥</span>
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-[#FF6B35] via-[#FF4500] to-[#FF1744] text-white px-4 py-2 md:px-8 md:py-4 rounded-full font-extrabold mt-4 md:mt-8 animate-fade-in-up animation-delay-600 shadow-[0_8px_30px_rgba(255,107,53,0.4)] text-sm md:text-base">
+            <span className="animate-fire text-lg md:text-2xl">🔥</span>
             <span>{pessoasSolicitaram} pessoas solicitaram orçamento hoje</span>
           </div>
         </div>
