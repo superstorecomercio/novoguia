@@ -10,6 +10,7 @@ export async function POST(request: NextRequest) {
   let from_name: string = ''
   let test_email: string = ''
   let server_id: string = ''
+  let testModeActive: boolean = false
   
   try {
     const body = await request.json()
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     // Forçar recarregamento da configuração para garantir que está atualizada
     const { loadTestModeConfig } = await import('@/lib/email/test-mode')
     await loadTestModeConfig()
-    const testModeActive = await isTestMode()
+    testModeActive = await isTestMode()
     console.log('📧 [Test API] Modo de teste ativo?', testModeActive)
     
     if (testModeActive) {
