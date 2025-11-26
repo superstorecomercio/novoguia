@@ -233,7 +233,7 @@ export async function getTestEmailLogs(): Promise<TestEmailLog[]> {
     const { data, error } = await supabase
       .from('email_tracking')
       .select('*')
-      .or('tipo_email.eq.teste_configuracao,and(status_envio.eq.enviado,metadata->modo_teste.eq.true)')
+      .or('tipo_email.eq.teste_configuracao,and(tipo_email.neq.null,metadata->modo_teste.eq.true)')
       .order('enviado_em', { ascending: false })
       .limit(100)
     
