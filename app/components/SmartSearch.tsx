@@ -68,7 +68,7 @@ export function SmartSearch() {
       // Se for para calcular preço, redireciona automaticamente
       if (data.intencao === "calcular_preco") {
         setTimeout(() => {
-          router.push("/calculadora")
+          router.push("/calcularmudanca")
         }, 1500)
       }
 

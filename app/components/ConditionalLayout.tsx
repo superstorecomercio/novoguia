@@ -14,6 +14,7 @@ export default function ConditionalLayout({
   const isAdminRoute = pathname?.startsWith('/admin');
   const hideFooter = pathname?.startsWith('/calculadorateste');
   const isCalculadoraTeste = pathname?.startsWith('/calculadorateste');
+  const isCalculadoraMudanca = pathname?.startsWith('/calcularmudanca');
 
   if (isAdminRoute) {
     return <>{children}</>;
@@ -21,7 +22,7 @@ export default function ConditionalLayout({
 
   return (
     <>
-      <Header />
+      {!isCalculadoraMudanca && <Header />}
       <main className={cn("flex-grow", isCalculadoraTeste ? "pt-0" : "pt-16 lg:pt-20")}>{children}</main>
       {!hideFooter && <Footer />}
     </>

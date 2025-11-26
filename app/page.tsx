@@ -79,7 +79,7 @@ export default function Home() {
               {/* Botões de Ação */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 relative z-10">
                 <Link
-                  href="/calculadorateste"
+                  href="/calcularmudanca"
                   className="group relative p-6 md:p-8 bg-white border-2 border-primary rounded-2xl hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-primary/5 to-primary/10 cursor-pointer active:scale-[0.98]"
                 >
                   <div className="flex items-start gap-4 text-left pointer-events-none">
