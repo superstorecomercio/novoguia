@@ -3,8 +3,22 @@ import { isTestMode, getTestEmail } from '@/lib/email/test-mode'
 import { createAdminClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
+  // Declarar variáveis no escopo da função para que estejam disponíveis no catch
+  let testEmailTo: string = ''
+  let provider: string = ''
+  let from_email: string = ''
+  let from_name: string = ''
+  let test_email: string = ''
+  let server_id: string = ''
+  
   try {
-    const { provider, api_key, server_id, from_email, from_name, test_email } = await request.json()
+    const body = await request.json()
+    provider = body.provider || ''
+    const api_key = body.api_key || ''
+    server_id = body.server_id || ''
+    from_email = body.from_email || ''
+    from_name = body.from_name || ''
+    test_email = body.test_email || ''
 
     if (!provider || !api_key || !from_email) {
       return NextResponse.json(
@@ -61,7 +75,6 @@ export async function POST(request: NextRequest) {
     }
     
     // Determinar email de destino
-    let testEmailTo: string
     if (testModeActive) {
       // Se modo de teste ativo, usar email de teste configurado
       testEmailTo = test_email || getTestEmail()
@@ -192,10 +205,13 @@ export async function POST(request: NextRequest) {
       const supabase = createAdminClient()
       const codigoRastreamento = `ERROR-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`
       
+      // Determinar email de destino para o log (pode não estar definido se erro ocorreu antes)
+      const emailDestinatario = testEmailTo || test_email || from_email || 'N/A'
+      
       await supabase.from('email_tracking').insert({
         codigo_rastreamento: codigoRastreamento,
         tipo_email: 'teste_configuracao',
-        email_destinatario: testEmailTo || 'N/A',
+        email_destinatario: emailDestinatario,
         assunto: 'Teste de Configuração - MudaTech (ERRO)',
         enviado_em: new Date().toISOString(),
         metadata: {
