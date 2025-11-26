@@ -9,6 +9,18 @@ const nextConfig: NextConfig = {
   trailingSlash: false,
   // Excluir pasta painel do build (subprojeto separado)
   pageExtensions: ['ts', 'tsx', 'js', 'jsx'],
+  // Suprimir warnings de módulos opcionais não instalados
+  webpack: (config, { isServer }) => {
+    // Ignorar módulos opcionais de email que podem não estar instalados
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      'resend': false,
+      '@sendgrid/mail': false,
+      'nodemailer': false,
+    };
+    
+    return config;
+  },
   images: {
     remotePatterns: [
       {
