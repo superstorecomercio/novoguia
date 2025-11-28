@@ -2,6 +2,43 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 
 /**
+ * Normaliza uma data string para evitar problemas de timezone
+ * Garante que a data seja tratada como DATE local, não como TIMESTAMP
+ */
+function normalizeDate(dateString: string | null | undefined): string | null {
+  if (!dateString || dateString.trim() === '') {
+    return null;
+  }
+
+  const trimmed = dateString.trim();
+
+  // Se já está no formato YYYY-MM-DD, retornar diretamente
+  // O PostgreSQL interpreta strings no formato YYYY-MM-DD como DATE (sem timezone)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Se não está no formato esperado, tentar parsear e converter
+  try {
+    // Criar uma data local a partir da string
+    const date = new Date(trimmed);
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+    
+    // Usar métodos locais (getFullYear, getMonth, getDate) para evitar conversão de timezone
+    // Isso garante que a data seja a mesma que o usuário selecionou
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * POST /api/admin/campanhas
  * Cria uma nova campanha
  * Garante que sempre haja um hotsite_id
@@ -97,16 +134,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Normalizar datas para evitar problemas de timezone
+    const dataInicioNormalizada = body.data_inicio 
+      ? normalizeDate(body.data_inicio) 
+      : new Date().toISOString().split('T')[0];
+    const dataFimNormalizada = normalizeDate(body.data_fim);
+
     // Criar campanha com hotsite_id garantido
     const campanhaData = {
       hotsite_id: hotsiteId,
       empresa_id: body.empresa_id || null, // Manter por compatibilidade
       plano_id: body.plano_id,
-      data_inicio: body.data_inicio || new Date().toISOString().split('T')[0],
-      data_fim: body.data_fim || null,
+      data_inicio: dataInicioNormalizada,
+      data_fim: dataFimNormalizada,
       valor_mensal: body.valor_total || body.valor_mensal || 0, // Aceita ambos para compatibilidade
       participa_cotacao: body.participa_cotacao !== undefined ? body.participa_cotacao : true,
       limite_orcamentos_mes: body.limite_orcamentos_mes || null,
+      envia_email_ativacao: body.envia_email_ativacao !== undefined ? body.envia_email_ativacao : true,
       ativo: false, // Nova campanha inicia inativa
     };
 
@@ -121,6 +165,39 @@ export async function POST(request: NextRequest) {
         { error: 'Erro ao criar campanha', details: errorCampanha.message },
         { status: 500 }
       );
+    }
+
+    // Se email, telefone1 ou tipoempresa foram enviados, atualizar o hotsite
+    if (hotsiteId && (body.email !== undefined || body.telefone1 !== undefined || body.tipoempresa !== undefined)) {
+      const hotsiteUpdateData: any = {};
+      
+      if (body.email !== undefined) {
+        hotsiteUpdateData.email = body.email;
+      }
+      
+      if (body.telefone1 !== undefined) {
+        hotsiteUpdateData.telefone1 = body.telefone1 || null;
+      }
+      
+      if (body.tipoempresa !== undefined) {
+        hotsiteUpdateData.tipoempresa = body.tipoempresa;
+      }
+      
+      if (Object.keys(hotsiteUpdateData).length > 0) {
+        console.log('📝 [API Campanhas] Atualizando hotsite ao criar campanha:', hotsiteId, hotsiteUpdateData);
+        
+        const { error: hotsiteError } = await supabase
+          .from('hotsites')
+          .update(hotsiteUpdateData)
+          .eq('id', hotsiteId);
+
+        if (hotsiteError) {
+          console.error('❌ [API Campanhas] Erro ao atualizar hotsite:', hotsiteError);
+          // Não retorna erro fatal, apenas loga
+        } else {
+          console.log('✅ [API Campanhas] Hotsite atualizado ao criar campanha!', hotsiteUpdateData);
+        }
+      }
     }
 
     return NextResponse.json({

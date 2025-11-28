@@ -26,6 +26,9 @@ interface Orcamento {
   tentativas_envio: number
   hotsites_notificados: number
   created_at: string
+  na_fila_count?: number // Contagem de vínculos na fila
+  enviados_count?: number // Contagem de vínculos enviados
+  erro_count?: number // Contagem de vínculos com erro
 }
 
 const statusColors = {
@@ -40,7 +43,8 @@ const statusEnvioColors = {
   na_fila: 'bg-orange-100 text-orange-800',
   enviando: 'bg-blue-100 text-blue-800',
   enviado: 'bg-green-100 text-green-800',
-  erro: 'bg-red-100 text-red-800'
+  erro: 'bg-red-100 text-red-800',
+  sem_empresas: 'bg-yellow-100 text-yellow-800'
 }
 
 const statusLabels = {
@@ -55,7 +59,8 @@ const statusEnvioLabels = {
   na_fila: 'Na Fila',
   enviando: 'Enviando',
   enviado: 'Enviado',
-  erro: 'Erro'
+  erro: 'Erro',
+  sem_empresas: 'Sem Empresas'
 }
 
 const StatusIcon = ({ status }: { status: string }) => {
@@ -67,6 +72,8 @@ const StatusIcon = ({ status }: { status: string }) => {
     case 'enviando':
       return <Clock className="w-4 h-4 animate-spin" />
     case 'erro':
+      return <AlertTriangle className="w-4 h-4" />
+    case 'sem_empresas':
       return <AlertTriangle className="w-4 h-4" />
     default:
       return <XCircle className="w-4 h-4" />
@@ -116,24 +123,39 @@ export default function OrcamentosPage() {
       setLoading(true)
       const supabase = getSupabase()
       
+      // Buscar orçamentos com contagem de vínculos na fila
       let query = supabase
         .from('orcamentos')
-        .select('*')
+        .select(`
+          *,
+          orcamentos_campanhas(
+            id,
+            status_envio_email
+          )
+        `)
 
-      // Aplicar filtro de período
-      const dateRange = getDateRange()
-      if (dateRange) {
-        query = query
-          .gte('created_at', dateRange.start)
-          .lte('created_at', dateRange.end)
+      // IMPORTANTE: Se houver busca, ignorar filtro de período (busca independente)
+      // Se não houver busca, aplicar filtro de período normalmente
+      const hasSearch = search.trim() !== ''
+      
+      if (!hasSearch) {
+        // Aplicar filtro de período apenas se não houver busca
+        const dateRange = getDateRange()
+        if (dateRange) {
+          query = query
+            .gte('created_at', dateRange.start)
+            .lte('created_at', dateRange.end)
+        }
       }
 
-      // Aplicar filtros de busca
-      if (search.trim()) {
+      // Aplicar filtros de busca (independente do período)
+      if (hasSearch) {
         if (searchType === 'nome') {
           query = query.ilike('nome_cliente', `%${search.trim()}%`)
         } else if (searchType === 'codigo') {
-          query = query.ilike('codigo_orcamento', `%${search.trim()}%`)
+          // Buscar por código (converter para maiúsculas para melhor correspondência)
+          const searchTerm = search.trim().toUpperCase()
+          query = query.ilike('codigo_orcamento', `%${searchTerm}%`)
         } else if (searchType === 'data') {
           // Tentar parsear a data em diferentes formatos
           let year: number | undefined, month: number | undefined, day: number | undefined
@@ -166,7 +188,48 @@ export default function OrcamentosPage() {
 
       if (error) throw error
 
-      setOrcamentos(data || [])
+      // Processar dados: calcular status baseado nos vínculos
+      const orcamentosProcessados = (data || []).map((orcamento: any) => {
+        const vinculos = orcamento.orcamentos_campanhas || []
+        const naFilaCount = vinculos.filter((v: any) => v.status_envio_email === 'na_fila').length
+        const enviadosCount = vinculos.filter((v: any) => v.status_envio_email === 'enviado').length
+        const erroCount = vinculos.filter((v: any) => v.status_envio_email === 'erro').length
+        const enviandoCount = vinculos.filter((v: any) => v.status_envio_email === 'enviando').length
+        const totalVinculos = vinculos.length
+        
+        // Calcular status geral do orçamento baseado nos vínculos
+        let statusEnvioEmail = 'na_fila' // padrão
+        if (totalVinculos === 0) {
+          // Se não há vínculos, verificar se não há empresas disponíveis
+          if (orcamento.hotsites_notificados === 0) {
+            statusEnvioEmail = 'sem_empresas'
+          } else {
+            statusEnvioEmail = orcamento.status_envio_email || 'na_fila'
+          }
+        } else if (enviadosCount === totalVinculos) {
+          statusEnvioEmail = 'enviado'
+        } else if (erroCount > 0 && naFilaCount === 0 && enviadosCount === 0) {
+          statusEnvioEmail = 'erro'
+        } else if (enviandoCount > 0) {
+          statusEnvioEmail = 'enviando'
+        } else if (enviadosCount > 0 || erroCount > 0) {
+          // Parcial: alguns enviados/erro, mas não todos
+          statusEnvioEmail = enviadosCount > erroCount ? 'enviado' : 'erro'
+        }
+        
+        // Remover o campo orcamentos_campanhas do objeto final
+        const { orcamentos_campanhas, ...orcamentoLimpo } = orcamento
+        
+        return {
+          ...orcamentoLimpo,
+          status_envio_email: statusEnvioEmail, // Sobrescrever com status calculado
+          na_fila_count: naFilaCount,
+          enviados_count: enviadosCount,
+          erro_count: erroCount
+        }
+      })
+
+      setOrcamentos(orcamentosProcessados)
       setCurrentPage(1) // Resetar página ao buscar
     } catch (error) {
       console.error('Erro ao buscar orçamentos:', error)
@@ -176,10 +239,19 @@ export default function OrcamentosPage() {
     }
   }
 
+  // Buscar quando o período mudar (apenas se não houver busca ativa)
+  useEffect(() => {
+    if (!search.trim()) {
+      fetchOrcamentos()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodFilter, customStartDate, customEndDate])
+
+  // Buscar quando a busca mudar (independente do período)
   useEffect(() => {
     fetchOrcamentos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [periodFilter, customStartDate, customEndDate])
+  }, [search, searchType])
 
   // Paginação
   const totalPages = Math.ceil(orcamentos.length / itemsPerPage)
@@ -189,9 +261,13 @@ export default function OrcamentosPage() {
 
   // Estatísticas baseadas em todos os orçamentos (não apenas os paginados)
   const total = orcamentos.length
-  const naFila = orcamentos.filter((o: Orcamento) => o.status_envio_email === 'na_fila').length
+  // Contar orçamentos que têm pelo menos um vínculo na fila (excluindo sem_empresas)
+  const naFila = orcamentos.filter((o: any) => 
+    o.status_envio_email !== 'sem_empresas' && (o.na_fila_count || 0) > 0
+  ).length
   const enviados = orcamentos.filter((o: Orcamento) => o.status_envio_email === 'enviado').length
   const comErro = orcamentos.filter((o: Orcamento) => o.status_envio_email === 'erro').length
+  const semEmpresas = orcamentos.filter((o: Orcamento) => o.status_envio_email === 'sem_empresas' || o.hotsites_notificados === 0).length
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -274,7 +350,7 @@ export default function OrcamentosPage() {
       />
 
         {/* Estatísticas */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -319,6 +395,18 @@ export default function OrcamentosPage() {
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm text-gray-500">Sem Empresas</p>
+                <p className="text-xl sm:text-2xl font-bold text-yellow-600">{semEmpresas}</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
               </div>
             </div>
           </div>
@@ -390,9 +478,9 @@ export default function OrcamentosPage() {
                       <div className="text-sm text-gray-900">
                         {orcamento.destino_completo}
                       </div>
-                      {orcamento.distancia_km && (
+                      {orcamento.distancia_km != null && orcamento.distancia_km > 0 && (
                         <div className="text-xs text-gray-500 mt-1">
-                          📍 {orcamento.distancia_km} km
+                          📍 {orcamento.distancia_km.toLocaleString('pt-BR')} km
                         </div>
                       )}
                     </td>
@@ -520,8 +608,8 @@ export default function OrcamentosPage() {
                   <p className="text-sm font-medium text-gray-900">{orcamento.origem_completo}</p>
                   <p className="text-xs text-gray-500">↓</p>
                   <p className="text-sm font-medium text-gray-900">{orcamento.destino_completo}</p>
-                  {orcamento.distancia_km && (
-                    <p className="text-xs text-gray-500 mt-1">📍 {orcamento.distancia_km} km</p>
+                  {orcamento.distancia_km != null && orcamento.distancia_km > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">📍 {orcamento.distancia_km.toLocaleString('pt-BR')} km</p>
                   )}
                 </div>
                 <div className="flex items-center justify-between text-sm">

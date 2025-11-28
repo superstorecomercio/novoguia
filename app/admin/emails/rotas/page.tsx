@@ -23,12 +23,12 @@ const rotas: RotaInfo[] = [
     frequencia: 'A cada 10 minutos (via cron)'
   },
   {
-    id: 'enviar-para-cliente',
-    nome: 'Enviar Email para Cliente',
-    descricao: 'Envia email de confirmação de recebimento do orçamento para o cliente.',
-    endpoint: '/api/admin/emails/enviar-para-cliente',
+    id: 'enviar-clientes-pendentes',
+    nome: 'Enviar Emails para Clientes (Fila)',
+    descricao: 'Processa e envia emails de confirmação de orçamento para clientes que estão na fila (status: na_fila). Processa até 50 emails por execução.',
+    endpoint: '/api/admin/emails/enviar-clientes-pendentes',
     metodo: 'POST',
-    body: { orcamentoId: 'string (obrigatório)' }
+    frequencia: 'A cada 10 minutos (via cron)'
   },
   {
     id: 'enviar-prospeccao',
@@ -49,10 +49,18 @@ const rotas: RotaInfo[] = [
   {
     id: 'enviar-vencimento',
     nome: 'Enviar Vencimento de Campanha',
-    descricao: 'Envia emails de aviso para empresas cujas campanhas estão próximas do vencimento.',
+    descricao: 'Envia emails que estão na fila de vencimento (vencendo hoje ou vencendo em 1 dia). Processa até 50 emails por execução.',
     endpoint: '/api/admin/emails/enviar-vencimento-campanha',
     metodo: 'POST',
-    body: { diasAntecedencia: 'number (opcional, padrão: 7)' }
+    frequencia: 'A cada 10 minutos (via cron)'
+  },
+  {
+    id: 'processar-campanhas-vencendo',
+    nome: 'Processar Campanhas Vencendo',
+    descricao: 'Identifica campanhas que vencem hoje ou em 1 dia e adiciona emails à fila de envio. Evita duplicatas verificando se já existe um email criado hoje.',
+    endpoint: '/api/admin/emails/processar-campanhas-vencendo',
+    metodo: 'POST',
+    frequencia: 'Diariamente (recomendado: 1x por dia, de manhã)'
   }
 ]
 
@@ -67,18 +75,7 @@ export default function RotasEmailsPage() {
       const body: any = {}
 
       // Preparar body baseado no tipo de rota
-      if (rota.id === 'enviar-para-cliente') {
-        const orcamentoId = prompt('Digite o ID do orçamento:')
-        if (!orcamentoId) {
-          setExecutando(prev => {
-            const next = new Set(prev)
-            next.delete(rota.id)
-            return next
-          })
-          return
-        }
-        body.orcamentoId = orcamentoId
-      } else if (rota.id === 'enviar-prospeccao') {
+      if (rota.id === 'enviar-prospeccao') {
         const emailsInput = prompt('Digite os emails separados por vírgula:')
         if (!emailsInput) {
           setExecutando(prev => {
@@ -100,19 +97,15 @@ export default function RotasEmailsPage() {
           return
         }
         body.campanhaId = campanhaId
-      } else if (rota.id === 'enviar-vencimento') {
-        const diasInput = prompt('Dias de antecedência (padrão: 7):')
-        if (diasInput) {
-          body.diasAntecedencia = parseInt(diasInput, 10)
-        }
       }
+      // Rota enviar-vencimento não precisa de input, apenas executa
 
       const response = await fetch(rota.endpoint, {
         method: rota.metodo,
         headers: {
           'Content-Type': 'application/json'
         },
-        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined
+        body: Object.keys(body).length > 0 ? JSON.stringify(body) : '{}'
       })
 
       const data = await response.json()

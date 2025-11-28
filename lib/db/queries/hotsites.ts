@@ -173,8 +173,9 @@ export const getHotsitesByCidadeSlug = async (
       `)
       .eq('ativo', true)
       .eq('hotsite.cidade_id', cidade.id)
-      .lte('data_inicio', hoje)
-      .or(`data_fim.is.null,data_fim.gte.${hoje}`);
+      .lte('data_inicio', hoje);
+      // REMOVIDO: .or(`data_fim.is.null,data_fim.gte.${hoje}`)
+      // Agora apenas verifica se ativo = true, ignorando data de vencimento
     
     if (error || !campanhas || campanhas.length === 0) {
       return [];
@@ -285,8 +286,9 @@ export const getHotsitesCountByTipo = async (
       `)
       .eq('ativo', true)
       .eq('hotsite.cidade_id', cidade.id)
-      .lte('data_inicio', hoje)
-      .or(`data_fim.is.null,data_fim.gte.${hoje}`);
+      .lte('data_inicio', hoje);
+      // REMOVIDO: .or(`data_fim.is.null,data_fim.gte.${hoje}`)
+      // Agora apenas verifica se ativo = true, ignorando data de vencimento
     
     if (error || !campanhas || campanhas.length === 0) {
       return { mudanca: 0, carreto: 0, guardamoveis: 0 };

@@ -19,6 +19,8 @@ export default function HotsiteForm() {
   const [error, setError] = useState<string | null>(null);
   const [cidades, setCidades] = useState<Cidade[]>([]);
   const [loadingCidades, setLoadingCidades] = useState(true);
+  const [gerandoDescricao, setGerandoDescricao] = useState(false);
+  const [gerandoLogo, setGerandoLogo] = useState(false);
 
   const [formData, setFormData] = useState({
     nome_exibicao: '',
@@ -66,6 +68,49 @@ export default function HotsiteForm() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleGerarDescricao = async () => {
+    if (!formData.nome_exibicao || formData.nome_exibicao.trim() === '') {
+      alert('Por favor, preencha o nome de exibição antes de gerar a descrição');
+      return;
+    }
+
+    setGerandoDescricao(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/admin/hotsites/gerar-descricao', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nome_exibicao: formData.nome_exibicao,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao gerar descrição');
+      }
+
+      // Preencher o campo descrição com a descrição gerada
+      setFormData(prev => ({
+        ...prev,
+        descricao: data.descricao || ''
+      }));
+
+      console.log('✅ Descrição gerada com sucesso!');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Erro ao gerar descrição';
+      console.error('❌ Erro ao gerar descrição:', errorMsg);
+      setError(errorMsg);
+      alert(`Erro ao gerar descrição: ${errorMsg}`);
+    } finally {
+      setGerandoDescricao(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -146,9 +191,35 @@ export default function HotsiteForm() {
         </div>
 
         <div>
-          <label htmlFor="descricao" className="block text-sm font-medium text-gray-700 mb-1">
-            Descrição
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label htmlFor="descricao" className="block text-sm font-medium text-gray-700">
+              Descrição
+            </label>
+            <button
+              type="button"
+              onClick={handleGerarDescricao}
+              disabled={gerandoDescricao || !formData.nome_exibicao}
+              className="text-xs px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+              title="Gerar descrição sugerida usando IA baseada no nome da empresa"
+            >
+              {gerandoDescricao ? (
+                <>
+                  <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Gerar com IA
+                </>
+              )}
+            </button>
+          </div>
           <textarea
             id="descricao"
             name="descricao"
@@ -158,6 +229,11 @@ export default function HotsiteForm() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Descrição do hotsite"
           />
+          <p className="text-xs text-gray-500 mt-1">
+            {formData.nome_exibicao 
+              ? 'Clique em "Gerar com IA" para criar uma descrição sugerida baseada no nome da empresa'
+              : 'Preencha o nome de exibição para habilitar a geração automática de descrição'}
+          </p>
         </div>
 
         <div>
@@ -265,13 +341,91 @@ export default function HotsiteForm() {
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-gray-900 border-b pb-2">Imagens</h2>
 
-        <ImageUpload
-          label="Logo"
-          currentUrl={formData.logo_url}
-          onUploadComplete={(url) => setFormData(prev => ({ ...prev, logo_url: url }))}
-          bucket="empresas-imagens"
-          folder="logos"
-        />
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Logo
+            </label>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!formData.nome_exibicao || formData.nome_exibicao.trim() === '') {
+                  alert('Por favor, preencha o nome de exibição antes de gerar o logo');
+                  return;
+                }
+
+                setGerandoLogo(true);
+                setError(null);
+
+                try {
+                  const response = await fetch('/api/admin/hotsites/gerar-logo', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      nome_exibicao: formData.nome_exibicao,
+                      tipoempresa: formData.tipoempresa || 'Empresa de Mudança',
+                    }),
+                  });
+
+                  const data = await response.json();
+
+                  if (!response.ok) {
+                    throw new Error(data.error || 'Erro ao gerar logo');
+                  }
+
+                  // Preencher o campo logo_url com a URL do logo gerado
+                  setFormData(prev => ({
+                    ...prev,
+                    logo_url: data.url || ''
+                  }));
+
+                  console.log('✅ Logo gerado com sucesso!', data.url);
+                } catch (err) {
+                  const errorMsg = err instanceof Error ? err.message : 'Erro ao gerar logo';
+                  console.error('❌ Erro ao gerar logo:', errorMsg);
+                  setError(errorMsg);
+                  alert(`Erro ao gerar logo: ${errorMsg}`);
+                } finally {
+                  setGerandoLogo(false);
+                }
+              }}
+              disabled={gerandoLogo || !formData.nome_exibicao}
+              className="text-xs px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+              title="Gerar logo usando IA baseado no nome e tipo da empresa"
+            >
+              {gerandoLogo ? (
+                <>
+                  <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Gerar Logo com IA
+                </>
+              )}
+            </button>
+          </div>
+          <ImageUpload
+            label=""
+            currentUrl={formData.logo_url}
+            onUploadComplete={(url) => setFormData(prev => ({ ...prev, logo_url: url }))}
+            bucket="empresas-imagens"
+            folder="logos"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            {formData.nome_exibicao 
+              ? 'Clique em "Gerar Logo com IA" para criar um logo profissional baseado no nome e tipo da empresa (133x100px, otimizado para web)'
+              : 'Preencha o nome de exibição para habilitar a geração automática de logo'}
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <ImageUpload

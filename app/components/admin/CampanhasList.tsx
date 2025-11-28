@@ -8,22 +8,29 @@ interface Campanha {
   empresa_id: string;
   hotsite_id?: string;
   empresa_nome: string;
+  plano_id?: string | null;
   plano_nome: string;
   plano_ordem: number;
   cidade_nome?: string;
   tipoempresa?: string;
   email?: string;
+  telefone1?: string;
   data_inicio: string;
   data_fim?: string;
   valor: number;
   ativo: boolean;
   participa_cotacao?: boolean;
   limite_orcamentos_mes?: number;
+  envia_email_ativacao?: boolean;
+  created_at?: string;
 }
 
 interface Hotsite {
   id: string;
   nome_exibicao: string;
+  email?: string;
+  telefone1?: string;
+  tipoempresa?: string;
   cidade?: {
     nome: string;
     estado: string;
@@ -34,6 +41,7 @@ interface Plano {
   id: string;
   nome: string;
   ordem: number;
+  preco?: number;
 }
 
 interface CampanhasListProps {
@@ -41,11 +49,32 @@ interface CampanhasListProps {
   hotsites: Hotsite[];
   planos: Plano[];
   onFilteredCampanhasChange?: (filtered: Campanha[]) => void;
+  onReload?: () => void; // Callback para recarregar dados do componente pai
 }
 
-export default function CampanhasList({ campanhas: initialCampanhas, hotsites, planos, onFilteredCampanhasChange }: CampanhasListProps) {
+export default function CampanhasList({ campanhas: initialCampanhas, hotsites, planos, onFilteredCampanhasChange, onReload }: CampanhasListProps) {
   const router = useRouter();
   const [campanhas, setCampanhas] = useState<Campanha[]>(initialCampanhas);
+
+  // Log para debug - verificar se hotsites têm os dados necessários
+  useEffect(() => {
+    if (hotsites.length > 0) {
+      const primeiroHotsite = hotsites[0];
+      console.log('📋 [CampanhasList] Hotsites carregados:', {
+        total: hotsites.length,
+        primeiroHotsite: {
+          id: primeiroHotsite.id,
+          nome: primeiroHotsite.nome_exibicao,
+          temEmail: !!primeiroHotsite.email,
+          temTelefone1: !!primeiroHotsite.telefone1,
+          temTipoempresa: !!primeiroHotsite.tipoempresa,
+          email: primeiroHotsite.email,
+          telefone1: primeiroHotsite.telefone1,
+          tipoempresa: primeiroHotsite.tipoempresa
+        }
+      });
+    }
+  }, [hotsites]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'todos' | 'ativas' | 'inativas'>('todos');
   const [filterPlano, setFilterPlano] = useState<string>('todos');
@@ -57,6 +86,16 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
   const [loading, setLoading] = useState<string | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [hotsiteSearchTerm, setHotsiteSearchTerm] = useState('');
+  const [telefone1Formatted, setTelefone1Formatted] = useState('');
+
+  // Formatação de telefone brasileiro
+  const formatPhone = (phone: string): string => {
+    const numbers = phone.replace(/\D/g, '');
+    if (numbers.length === 0) return '';
+    if (numbers.length <= 2) return `(${numbers}`;
+    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+  };
 
   // Atualizar estado quando initialCampanhas mudar (vindo do componente pai)
   useEffect(() => {
@@ -69,8 +108,13 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
     data_fim: '',
     valor_total: 0, // Será convertido para valor_mensal no backend
     participa_cotacao: true,
+    envia_email_ativacao: true, // Padrão: Sim
+    email: '',
+    telefone1: '',
+    tipoempresa: 'Empresa de Mudança',
       // limite_orcamentos_mes removido do formulário (não usado por enquanto)
   });
+  const [newTelefone1Formatted, setNewTelefone1Formatted] = useState('');
 
   // Extrair planos únicos
   const planosUnicos = useMemo(() => {
@@ -195,21 +239,28 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
 
   const handleEdit = (campanha: Campanha) => {
     setEditingId(campanha.id);
+    const telefone1Raw = campanha.telefone1 || '';
+    const telefone1Numbers = telefone1Raw.replace(/\D/g, '');
     setEditData({
       hotsite_id: campanha.hotsite_id,
+      plano_id: campanha.plano_id || '', // Plano da campanha
       email: campanha.email || '', // Email do hotsite
-      data_fim: campanha.data_fim || '',
+      telefone1: telefone1Numbers, // Telefone1 do hotsite (apenas números)
+      data_fim: normalizeDateForInput(campanha.data_fim), // Normalizar data para evitar problemas de timezone
       valor: campanha.valor,
       // Status (ativo) é alterado apenas pelo botão na lista, não no formulário de edição
       tipoempresa: campanha.tipoempresa || 'Empresa de Mudança',
       participa_cotacao: campanha.participa_cotacao !== false,
+      envia_email_ativacao: campanha.envia_email_ativacao || false,
       // limite_orcamentos_mes removido do formulário (não usado por enquanto)
     });
+    setTelefone1Formatted(formatPhone(telefone1Numbers));
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditData({});
+    setTelefone1Formatted('');
   };
 
   const handleSave = async (id: string) => {
@@ -221,6 +272,7 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
         body: JSON.stringify({
           ...editData,
           limite_orcamentos_mes: null, // Sempre ilimitado por enquanto
+          envia_email_ativacao: editData.envia_email_ativacao || false,
         }),
       });
 
@@ -230,6 +282,27 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
 
       setEditingId(null);
       setEditData({});
+      setTelefone1Formatted('');
+      
+      // Recarregar dados: primeiro tenta callback do pai, senão recarrega diretamente
+      if (onReload) {
+        onReload();
+      } else {
+        // Recarregar dados diretamente
+        try {
+          const reloadResponse = await fetch('/api/admin/campanhas/list');
+          if (reloadResponse.ok) {
+            const reloadData = await reloadResponse.json();
+            if (reloadData.campanhas) {
+              setCampanhas(reloadData.campanhas);
+            }
+          }
+        } catch (reloadError) {
+          console.error('Erro ao recarregar lista:', reloadError);
+        }
+      }
+      
+      // Também fazer refresh do router para garantir
       router.refresh();
     } catch (error) {
       console.error('Erro ao salvar:', error);
@@ -239,7 +312,37 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
     }
   };
 
-  const handleToggleAtivo = async (id: string, ativo: boolean) => {
+  const handleToggleAtivo = async (
+    id: string, 
+    ativo: boolean, 
+    email?: string, 
+    telefone1?: string, 
+    dataFim?: string,
+    participaCotacao?: boolean
+  ) => {
+    // Se está tentando ativar (ativo atual é false, então vai virar true), validar todos os campos obrigatórios
+    // Mas não validar se for campanha de e-mail manual (participa_cotacao = false)
+    if (!ativo && participaCotacao !== false) {
+      const erros: string[] = [];
+      
+      if (!email || !isValidEmail(email)) {
+        erros.push('Email está vazio ou inválido');
+      }
+      
+      if (!telefone1 || !isValidPhone(telefone1)) {
+        erros.push('Telefone 1 está vazio ou inválido');
+      }
+      
+      if (!dataFim || dataFim.trim() === '') {
+        erros.push('Data de vencimento não pode estar vazia');
+      }
+      
+      if (erros.length > 0) {
+        alert(`❌ Não é possível ativar a campanha:\n\n${erros.map(e => `• ${e}`).join('\n')}\n\nPor favor, edite a campanha e preencha todos os campos obrigatórios.`);
+        return;
+      }
+    }
+
     setLoading(id);
     try {
       const response = await fetch(`/api/admin/campanhas/${id}`, {
@@ -252,7 +355,12 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
         throw new Error('Erro ao atualizar status');
       }
 
-      router.refresh();
+      // Recarregar dados após atualizar
+      if (onReload) {
+        onReload();
+      } else {
+        router.refresh();
+      }
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       alert('Erro ao atualizar status da campanha');
@@ -304,6 +412,11 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
       return;
     }
 
+    if (!newCampanhaData.email || !newCampanhaData.telefone1) {
+      alert('Por favor, preencha o email e telefone da empresa');
+      return;
+    }
+
     setLoading('creating');
     try {
       const response = await fetch('/api/admin/campanhas', {
@@ -331,8 +444,33 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
         data_fim: '',
         valor_total: 0,
         participa_cotacao: true,
+        envia_email_ativacao: true,
+        email: '',
+        telefone1: '',
+        tipoempresa: 'Empresa de Mudança',
         // limite_orcamentos_mes removido do formulário (não usado por enquanto)
       });
+      setNewTelefone1Formatted('');
+      
+      // Recarregar dados: primeiro tenta callback do pai, senão recarrega diretamente
+      if (onReload) {
+        onReload();
+      } else {
+        // Recarregar dados diretamente
+        try {
+          const reloadResponse = await fetch('/api/admin/campanhas/list');
+          if (reloadResponse.ok) {
+            const reloadData = await reloadResponse.json();
+            if (reloadData.campanhas) {
+              setCampanhas(reloadData.campanhas);
+            }
+          }
+        } catch (reloadError) {
+          console.error('Erro ao recarregar lista:', reloadError);
+        }
+      }
+      
+      // Também fazer refresh do router para garantir
       router.refresh();
     } catch (error: any) {
       console.error('Erro ao criar campanha:', error);
@@ -349,19 +487,80 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
     }).format(value);
   };
 
+  /**
+   * Normaliza uma data string do banco para exibição no input type="date"
+   * Garante que a data seja tratada como local, não UTC
+   * IMPORTANTE: Para strings no formato YYYY-MM-DD, retorna diretamente
+   * para evitar conversão de timezone pelo JavaScript
+   */
+  const normalizeDateForInput = (dateString: string | null | undefined): string => {
+    if (!dateString) return '';
+    
+    const trimmed = dateString.trim();
+    
+    // Se já está no formato YYYY-MM-DD, retornar diretamente
+    // Isso evita que o JavaScript interprete como UTC e converta para local
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+    
+    // Se não está no formato esperado, tentar parsear
+    // Mas usar componentes separados para evitar conversão de timezone
+    try {
+      // Se a string contém apenas data (sem hora), extrair componentes diretamente
+      const dateMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        // Validar se os valores são válidos
+        const yearNum = parseInt(year, 10);
+        const monthNum = parseInt(month, 10);
+        const dayNum = parseInt(day, 10);
+        
+        if (yearNum >= 1900 && yearNum <= 2100 && monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+          return `${year}-${month}-${day}`;
+        }
+      }
+      
+      // Se não conseguiu extrair diretamente, tentar com Date (último recurso)
+      const date = new Date(trimmed);
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      
+      // Usar métodos locais para evitar conversão de timezone
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    } catch {
+      return '';
+    }
+  };
+
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('pt-BR');
+    // Para exibição, usar a data normalizada e formatar
+    const normalized = normalizeDateForInput(dateString);
+    if (!normalized) return '-';
+    
+    // Converter YYYY-MM-DD para DD/MM/YYYY para exibição
+    const [year, month, day] = normalized.split('-');
+    return `${day}/${month}/${year}`;
   };
 
   // Verificar se a data está vencida
   const isDateExpired = (dateString: string | null | undefined): boolean => {
     if (!dateString) return false;
-    const date = new Date(dateString);
+    // Normalizar a data antes de comparar
+    const normalizedDate = normalizeDateForInput(dateString);
+    if (!normalizedDate) return false;
+    
+    // Comparar strings no formato YYYY-MM-DD diretamente (evita problemas de timezone)
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Resetar horas para comparar apenas datas
-    date.setHours(0, 0, 0, 0);
-    return date < today;
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    return normalizedDate < todayStr;
   };
 
   const getBadgeColor = (plano: string) => {
@@ -381,8 +580,46 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
     return emailRegex.test(email.trim());
   };
 
+  // Validar telefone brasileiro (deve ter pelo menos 10 dígitos - fixo ou 11 - celular)
+  const isValidPhone = (phone: string | undefined | null): boolean => {
+    if (!phone || phone.trim() === '') return false;
+    const numbers = phone.replace(/\D/g, '');
+    // Telefone brasileiro: mínimo 10 dígitos (fixo) ou 11 dígitos (celular com DDD)
+    return numbers.length >= 10 && numbers.length <= 11;
+  };
+
   const hasEmailIssue = (campanha: Campanha): boolean => {
     return !isValidEmail(campanha.email);
+  };
+
+  // Obter status da campanha para exibição
+  const getStatusCampanha = (campanha: Campanha): { label: string; className: string } => {
+    if (campanha.ativo) {
+      return {
+        label: 'Ativa',
+        className: 'bg-green-100 text-green-800'
+      };
+    } else {
+      // Verificar se é uma campanha nova (criada hoje) que nunca foi ativada
+      // "Aguardando ativação" apenas para campanhas recém-criadas (hoje)
+      const hoje = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const dataCriacao = campanha.created_at ? new Date(campanha.created_at).toISOString().split('T')[0] : null;
+      
+      // Se foi criada hoje, é "Aguardando ativação" (campanha nova)
+      // Caso contrário, é "Inativa" (foi desativada)
+      if (dataCriacao === hoje) {
+        return {
+          label: 'Aguardando ativação',
+          className: 'bg-yellow-100 text-yellow-800'
+        };
+      }
+      
+      // Campanha desativada (já existia antes e foi desativada)
+      return {
+        label: 'Inativa',
+        className: 'bg-red-100 text-red-800'
+      };
+    }
   };
 
   return (
@@ -497,19 +734,6 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <button
-                    onClick={() => handleSort('plano')}
-                    className="flex items-center gap-1 hover:text-gray-700 transition-colors"
-                  >
-                    Plano
-                    {sortBy === 'plano' && (
-                      <span className="text-blue-600">
-                        {sortOrder === 'asc' ? '↑' : '↓'}
-                      </span>
-                    )}
-                  </button>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <button
                     onClick={() => handleSort('cidade')}
                     className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                   >
@@ -523,6 +747,19 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tipo
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button
+                    onClick={() => handleSort('plano')}
+                    className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                  >
+                    Plano
+                    {sortBy === 'plano' && (
+                      <span className="text-blue-600">
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </button>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <button
@@ -580,6 +817,49 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                               </div>
                               <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Telefone 1
+                                </label>
+                                <input
+                                  type="tel"
+                                  value={telefone1Formatted}
+                                  onChange={(e) => {
+                                    const inputValue = e.target.value;
+                                    const numbers = inputValue.replace(/\D/g, '');
+                                    // Limitar a 11 dígitos
+                                    if (numbers.length <= 11) {
+                                      const formatted = formatPhone(numbers);
+                                      setTelefone1Formatted(formatted);
+                                      setEditData({ ...editData, telefone1: numbers });
+                                    }
+                                  }}
+                                  placeholder="(11) 98765-4321"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Telefone do hotsite (será atualizado no hotsite)
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Plano
+                                </label>
+                                <select
+                                  value={editData.plano_id || ''}
+                                  onChange={(e) =>
+                                    setEditData({ ...editData, plano_id: e.target.value })
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                                >
+                                  <option value="">Selecione um plano</option>
+                                  {planos.map((plano) => (
+                                    <option key={plano.id} value={plano.id}>
+                                      {plano.nome}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
                                   Tipo de Empresa
                                 </label>
                                 <select
@@ -606,6 +886,24 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                                   }
                                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
                                 />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Envia Email Ativação/Desativação?
+                                </label>
+                                <select
+                                  value={editData.envia_email_ativacao ? 'sim' : 'nao'}
+                                  onChange={(e) =>
+                                    setEditData({ ...editData, envia_email_ativacao: e.target.value === 'sim' })
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                                >
+                                  <option value="nao">Não</option>
+                                  <option value="sim">Sim</option>
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Se Sim, envia email automaticamente ao ativar/desativar a campanha
+                                </p>
                               </div>
                               <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -683,15 +981,6 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getBadgeColor(
-                              campanha.plano_nome
-                            )}`}
-                          >
-                            {campanha.plano_nome}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
                             {campanha.cidade_nome || '-'}
                           </div>
@@ -700,6 +989,15 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                           <div className="text-sm text-gray-600">
                             {campanha.tipoempresa || 'Empresa de Mudança'}
                           </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getBadgeColor(
+                              campanha.plano_nome
+                            )}`}
+                          >
+                            {campanha.plano_nome}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
@@ -722,15 +1020,16 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              campanha.ativo
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}
-                          >
-                            {campanha.ativo ? 'Ativa' : 'Inativa'}
-                          </span>
+                          {(() => {
+                            const status = getStatusCampanha(campanha);
+                            return (
+                              <span
+                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status.className}`}
+                              >
+                                {status.label}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end gap-2">
@@ -741,7 +1040,14 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                               Editar
                             </button>
                             <button
-                              onClick={() => handleToggleAtivo(campanha.id, campanha.ativo)}
+                              onClick={() => handleToggleAtivo(
+                                campanha.id, 
+                                campanha.ativo, 
+                                campanha.email, 
+                                campanha.telefone1, 
+                                campanha.data_fim,
+                                campanha.participa_cotacao
+                              )}
                               disabled={loading === campanha.id}
                               className={`px-3 py-1 border rounded transition-colors disabled:opacity-50 ${
                                 campanha.ativo
@@ -819,6 +1125,49 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Telefone 1
+                      </label>
+                      <input
+                        type="tel"
+                        value={telefone1Formatted}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+                          const numbers = inputValue.replace(/\D/g, '');
+                          // Limitar a 11 dígitos
+                          if (numbers.length <= 11) {
+                            const formatted = formatPhone(numbers);
+                            setTelefone1Formatted(formatted);
+                            setEditData({ ...editData, telefone1: numbers });
+                          }
+                        }}
+                        placeholder="(11) 98765-4321"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Telefone do hotsite (será atualizado no hotsite)
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Plano
+                      </label>
+                      <select
+                        value={editData.plano_id || ''}
+                        onChange={(e) =>
+                          setEditData({ ...editData, plano_id: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                      >
+                        <option value="">Selecione um plano</option>
+                        {planos.map((plano) => (
+                          <option key={plano.id} value={plano.id}>
+                            {plano.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
                         Tipo de Empresa
                       </label>
                       <select
@@ -859,6 +1208,24 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Envia Email Ativação/Desativação?
+                      </label>
+                      <select
+                        value={editData.envia_email_ativacao ? 'sim' : 'nao'}
+                        onChange={(e) =>
+                          setEditData({ ...editData, envia_email_ativacao: e.target.value === 'sim' })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                      >
+                        <option value="nao">Não</option>
+                        <option value="sim">Sim</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Se Sim, envia email automaticamente ao ativar/desativar a campanha
+                      </p>
                     </div>
                     <div>
                       <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -939,6 +1306,16 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Plano:</span>
+                      <span
+                        className={`px-2 py-1 text-xs font-semibold rounded-full ${getBadgeColor(
+                          campanha.plano_nome
+                        )}`}
+                      >
+                        {campanha.plano_nome}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Período:</span>
                       <span className="font-medium text-gray-900">
                         {formatDate(campanha.data_inicio)}
@@ -958,15 +1335,16 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Status:</span>
-                      <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          campanha.ativo
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {campanha.ativo ? 'Ativa' : 'Inativa'}
-                      </span>
+                      {(() => {
+                        const status = getStatusCampanha(campanha);
+                        return (
+                          <span
+                            className={`px-2 py-1 text-xs font-semibold rounded-full ${status.className}`}
+                          >
+                            {status.label}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -978,7 +1356,13 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                       Editar
                     </button>
                     <button
-                      onClick={() => handleToggleAtivo(campanha.id, campanha.ativo)}
+                      onClick={() => handleToggleAtivo(
+                        campanha.id, 
+                        campanha.ativo, 
+                        campanha.email, 
+                        campanha.telefone1, 
+                        campanha.data_fim
+                      )}
                       disabled={loading === campanha.id}
                       className={`w-full px-4 py-2 border rounded-lg transition-colors disabled:opacity-50 text-sm font-medium ${
                         campanha.ativo
@@ -1052,7 +1436,43 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                 </label>
                 <select
                   value={newCampanhaData.hotsite_id}
-                  onChange={(e) => setNewCampanhaData({ ...newCampanhaData, hotsite_id: e.target.value })}
+                  onChange={(e) => {
+                    const hotsiteId = e.target.value;
+                    // Buscar no array completo de hotsites (não apenas nos filtrados)
+                    const hotsiteSelecionado = hotsites.find(h => h.id === hotsiteId);
+                    
+                    console.log('🔍 Hotsite selecionado:', {
+                      hotsiteId,
+                      encontrado: !!hotsiteSelecionado,
+                      email: hotsiteSelecionado?.email,
+                      telefone1: hotsiteSelecionado?.telefone1,
+                      tipoempresa: hotsiteSelecionado?.tipoempresa
+                    });
+                    
+                    if (hotsiteSelecionado) {
+                      const telefone1Numbers = (hotsiteSelecionado.telefone1 || '').replace(/\D/g, '');
+                      const telefoneFormatted = formatPhone(telefone1Numbers);
+                      
+                      console.log('✅ Preenchendo campos:', {
+                        email: hotsiteSelecionado.email || '',
+                        telefone1: telefone1Numbers,
+                        telefoneFormatted,
+                        tipoempresa: hotsiteSelecionado.tipoempresa || 'Empresa de Mudança'
+                      });
+                      
+                      setNewTelefone1Formatted(telefoneFormatted);
+                      setNewCampanhaData({
+                        ...newCampanhaData,
+                        hotsite_id: hotsiteId,
+                        email: hotsiteSelecionado.email || '',
+                        telefone1: telefone1Numbers,
+                        tipoempresa: hotsiteSelecionado.tipoempresa || 'Empresa de Mudança'
+                      });
+                    } else {
+                      console.warn('⚠️ Hotsite não encontrado no array');
+                      setNewCampanhaData({ ...newCampanhaData, hotsite_id: hotsiteId });
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6]"
                   required
                   size={Math.min(hotsitesFiltrados.length + 1, 10)}
@@ -1075,14 +1495,23 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                 </label>
                 <select
                   value={newCampanhaData.plano_id}
-                  onChange={(e) => setNewCampanhaData({ ...newCampanhaData, plano_id: e.target.value })}
+                  onChange={(e) => {
+                    const planoId = e.target.value;
+                    const planoSelecionado = planos.find(p => p.id === planoId);
+                    
+                    setNewCampanhaData({
+                      ...newCampanhaData,
+                      plano_id: planoId,
+                      valor_total: planoSelecionado?.preco || 0
+                    });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6]"
                   required
                 >
                   <option value="">Selecione um plano</option>
                   {planos.map((plano) => (
                     <option key={plano.id} value={plano.id}>
-                      {plano.nome}
+                      {plano.nome} {plano.preco ? `- R$ ${plano.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
                     </option>
                   ))}
                 </select>
@@ -1114,6 +1543,68 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email da Empresa *
+                  </label>
+                  <input
+                    type="email"
+                    value={newCampanhaData.email}
+                    onChange={(e) => setNewCampanhaData({ ...newCampanhaData, email: e.target.value })}
+                    placeholder="email@empresa.com.br"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Email do hotsite (será atualizado no hotsite se alterado)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Telefone 1 *
+                  </label>
+                  <input
+                    type="tel"
+                    value={newTelefone1Formatted}
+                    onChange={(e) => {
+                      const inputValue = e.target.value;
+                      const numbers = inputValue.replace(/\D/g, '');
+                      if (numbers.length <= 11) {
+                        const formatted = formatPhone(numbers);
+                        setNewTelefone1Formatted(formatted);
+                        setNewCampanhaData({ ...newCampanhaData, telefone1: numbers });
+                      }
+                    }}
+                    placeholder="(11) 98765-4321"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Telefone do hotsite (será atualizado no hotsite se alterado)
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Empresa
+                </label>
+                <select
+                  value={newCampanhaData.tipoempresa}
+                  onChange={(e) => setNewCampanhaData({ ...newCampanhaData, tipoempresa: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                >
+                  <option value="Empresa de Mudança">Empresa de Mudança</option>
+                  <option value="Carretos">Carretos</option>
+                  <option value="Guarda-Móveis">Guarda-Móveis</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Tipo do hotsite (será atualizado no hotsite se alterado)
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Valor Mensal (R$)
@@ -1122,7 +1613,7 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                   type="number"
                   step="0.01"
                   value={newCampanhaData.valor_total}
-                  onChange={(e) => setNewCampanhaData({ ...newCampanhaData, valor_total: parseFloat(e.target.value) })}
+                  onChange={(e) => setNewCampanhaData({ ...newCampanhaData, valor_total: parseFloat(e.target.value) || 0 })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6]"
                 />
               </div>
@@ -1146,6 +1637,23 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                     </p>
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Envia Email Ativação/Desativação?
+                    </label>
+                    <select
+                      value={newCampanhaData.envia_email_ativacao ? 'sim' : 'nao'}
+                      onChange={(e) => setNewCampanhaData({ ...newCampanhaData, envia_email_ativacao: e.target.value === 'sim' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6] text-sm"
+                    >
+                      <option value="sim">Sim</option>
+                      <option value="nao">Não</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Se Sim, envia email automaticamente ao ativar/desativar a campanha
+                    </p>
+                  </div>
+
                 </div>
               </div>
             </div>
@@ -1162,8 +1670,13 @@ export default function CampanhasList({ campanhas: initialCampanhas, hotsites, p
                     data_fim: '',
                     valor_total: 0,
                     participa_cotacao: true,
+                    envia_email_ativacao: true,
+                    email: '',
+                    telefone1: '',
+                    tipoempresa: 'Empresa de Mudança',
                     // limite_orcamentos_mes removido do formulário (não usado por enquanto)
                   });
+                  setNewTelefone1Formatted('');
                 }}
                 className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                 disabled={loading === 'creating'}

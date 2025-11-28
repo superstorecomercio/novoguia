@@ -1,0 +1,11 @@
+# Ignorar pasta painel (subprojeto separado, agora na raiz)
+painel/
+**/painel/**
+
+# Ignorar scripts de migração
+scripts/
+
+# Ignorar arquivos de desenvolvimento
+.env.local
+.env*.local
+

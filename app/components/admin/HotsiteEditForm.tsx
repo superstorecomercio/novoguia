@@ -17,6 +17,8 @@ export default function HotsiteEditForm({ hotsite, cidades }: HotsiteEditFormPro
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [gerandoDescricao, setGerandoDescricao] = useState(false);
+  const [gerandoLogo, setGerandoLogo] = useState(false);
 
   // Formatação de telefone brasileiro
   const formatPhone = (phone: string): string => {
@@ -120,6 +122,93 @@ export default function HotsiteEditForm({ hotsite, cidades }: HotsiteEditFormPro
       ...prev,
       [field]: values,
     }));
+  };
+
+  const handleGerarDescricao = async () => {
+    if (!hotsiteData.nome_exibicao || hotsiteData.nome_exibicao.trim() === '') {
+      alert('Por favor, preencha o nome de exibição antes de gerar a descrição');
+      return;
+    }
+
+    setGerandoDescricao(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/admin/hotsites/gerar-descricao', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nome_exibicao: hotsiteData.nome_exibicao,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao gerar descrição');
+      }
+
+      // Preencher o campo descrição com a descrição gerada
+      setHotsiteData(prev => ({
+        ...prev,
+        descricao: data.descricao || ''
+      }));
+
+      console.log('✅ Descrição gerada com sucesso!');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Erro ao gerar descrição';
+      console.error('❌ Erro ao gerar descrição:', errorMsg);
+      setError(errorMsg);
+      alert(`Erro ao gerar descrição: ${errorMsg}`);
+    } finally {
+      setGerandoDescricao(false);
+    }
+  };
+
+  const handleGerarLogo = async () => {
+    if (!hotsiteData.nome_exibicao || hotsiteData.nome_exibicao.trim() === '') {
+      alert('Por favor, preencha o nome de exibição antes de gerar o logo');
+      return;
+    }
+
+    setGerandoLogo(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/admin/hotsites/gerar-logo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nome_exibicao: hotsiteData.nome_exibicao,
+          tipoempresa: hotsiteData.tipoempresa || 'Empresa de Mudança',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao gerar logo');
+      }
+
+      // Preencher o campo logo_url com a URL do logo gerado
+      setHotsiteData(prev => ({
+        ...prev,
+        logo_url: data.url || ''
+      }));
+
+      console.log('✅ Logo gerado com sucesso!', data.url);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Erro ao gerar logo';
+      console.error('❌ Erro ao gerar logo:', errorMsg);
+      setError(errorMsg);
+      alert(`Erro ao gerar logo: ${errorMsg}`);
+    } finally {
+      setGerandoLogo(false);
+    }
   };
 
   return (
@@ -315,15 +404,46 @@ export default function HotsiteEditForm({ hotsite, cidades }: HotsiteEditFormPro
           </div>
 
           <div className="lg:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Descrição
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Descrição
+              </label>
+              <button
+                type="button"
+                onClick={handleGerarDescricao}
+                disabled={gerandoDescricao || !hotsiteData.nome_exibicao}
+                className="text-xs px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+                title="Gerar descrição sugerida usando IA baseada no nome da empresa"
+              >
+                {gerandoDescricao ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Gerar com IA
+                  </>
+                )}
+              </button>
+            </div>
             <textarea
               value={hotsiteData.descricao}
               onChange={(e) => setHotsiteData({ ...hotsiteData, descricao: e.target.value })}
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#0073e6] focus:border-[#0073e6]"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              {hotsiteData.nome_exibicao 
+                ? 'Clique em "Gerar com IA" para criar uma descrição sugerida baseada no nome da empresa'
+                : 'Preencha o nome de exibição para habilitar a geração automática de descrição'}
+            </p>
           </div>
         </div>
       </div>
@@ -334,17 +454,55 @@ export default function HotsiteEditForm({ hotsite, cidades }: HotsiteEditFormPro
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          <ImageUpload
-            label="Logo"
-            currentUrl={hotsiteData.logo_url}
-            onUploadComplete={(url) => setHotsiteData({ ...hotsiteData, logo_url: url })}
-            folder={`hotsites/${hotsite.id}`}
-          />
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Logo
+              </label>
+              <button
+                type="button"
+                onClick={handleGerarLogo}
+                disabled={gerandoLogo || !hotsiteData.nome_exibicao}
+                className="text-xs px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+                title="Gerar logo usando IA baseado no nome e tipo da empresa"
+              >
+                {gerandoLogo ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Gerar Logo com IA
+                  </>
+                )}
+              </button>
+            </div>
+            <ImageUpload
+              label=""
+              currentUrl={hotsiteData.logo_url}
+              onUploadComplete={(url) => setHotsiteData({ ...hotsiteData, logo_url: url })}
+              bucket="empresas-imagens"
+              folder={`hotsites/${hotsite.id}`}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {hotsiteData.nome_exibicao 
+                ? 'Clique em "Gerar Logo com IA" para criar um logo profissional baseado no nome e tipo da empresa (133x100px, otimizado para web)'
+                : 'Preencha o nome de exibição para habilitar a geração automática de logo'}
+            </p>
+          </div>
 
           <ImageUpload
             label="Foto 1"
             currentUrl={hotsiteData.foto1_url}
             onUploadComplete={(url) => setHotsiteData({ ...hotsiteData, foto1_url: url })}
+            bucket="empresas-imagens"
             folder={`hotsites/${hotsite.id}`}
           />
 
@@ -352,6 +510,7 @@ export default function HotsiteEditForm({ hotsite, cidades }: HotsiteEditFormPro
             label="Foto 2"
             currentUrl={hotsiteData.foto2_url}
             onUploadComplete={(url) => setHotsiteData({ ...hotsiteData, foto2_url: url })}
+            bucket="empresas-imagens"
             folder={`hotsites/${hotsite.id}`}
           />
 
@@ -359,6 +518,7 @@ export default function HotsiteEditForm({ hotsite, cidades }: HotsiteEditFormPro
             label="Foto 3"
             currentUrl={hotsiteData.foto3_url}
             onUploadComplete={(url) => setHotsiteData({ ...hotsiteData, foto3_url: url })}
+            bucket="empresas-imagens"
             folder={`hotsites/${hotsite.id}`}
           />
         </div>

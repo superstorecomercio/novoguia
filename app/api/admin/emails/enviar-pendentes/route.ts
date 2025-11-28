@@ -58,12 +58,27 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Se não está em modo teste, precisa estar ativo
-    if (!testMode && !emailConfig.ativo) {
-      return NextResponse.json(
-        { error: 'Configuração de email está inativa. Ative em /admin/emails/configuracao' },
-        { status: 400 }
-      )
+    // Se não está em modo teste, verificar se tem os dados necessários
+    // Se tiver provider, api_key e from_email, permitir mesmo se não estiver marcado como ativo
+    if (!testMode) {
+      const temDadosNecessarios = emailConfig.provider && 
+                                   emailConfig.api_key && 
+                                   emailConfig.api_key.trim() !== '' &&
+                                   emailConfig.from_email && 
+                                   emailConfig.from_email.trim() !== '';
+      
+      // Se não tem dados necessários E não está ativo, bloquear
+      if (!temDadosNecessarios && !emailConfig.ativo) {
+        return NextResponse.json(
+          { error: 'Configuração de email incompleta ou inativa. Configure e ative em /admin/emails/configuracao' },
+          { status: 400 }
+        )
+      }
+      
+      // Se tem dados necessários mas não está ativo, apenas avisar (mas permitir)
+      if (temDadosNecessarios && !emailConfig.ativo) {
+        console.warn('⚠️ [Enviar Pendentes] Configuração tem dados mas não está marcada como ativa. Permitindo envio mesmo assim.')
+      }
     }
     
     // Em modo teste, se não tiver provider, usar um padrão para processar templates
@@ -97,6 +112,10 @@ export async function POST(request: NextRequest) {
           whatsapp,
           origem_completo,
           destino_completo,
+          cidade_origem,
+          estado_origem,
+          cidade_destino,
+          estado_destino,
           tipo_imovel,
           metragem,
           distancia_km,
@@ -220,6 +239,70 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', vinculo.id)
 
+        // Funções auxiliares de formatação
+        const formatarTelefone = (telefone: string | null | undefined): string => {
+          if (!telefone) return 'Não informado'
+          // Remover todos os caracteres não numéricos
+          const numeros = telefone.replace(/\D/g, '')
+          if (numeros.length === 0) return 'Não informado'
+          
+          // Se já está formatado, retornar como está (mas garantir formato correto)
+          if (telefone.includes('(') && telefone.includes(')')) {
+            // Já está formatado, mas vamos garantir que está no formato correto
+            const nums = numeros
+            if (nums.length === 10) {
+              return `(${nums.slice(0, 2)}) ${nums.slice(2, 6)}-${nums.slice(6)}`
+            } else if (nums.length === 11) {
+              return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`
+            }
+          }
+          
+          // Formatar baseado no número de dígitos
+          if (numeros.length === 10) {
+            // Telefone fixo: (XX) XXXX-XXXX
+            return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 6)}-${numeros.slice(6)}`
+          } else if (numeros.length === 11) {
+            // Celular: (XX) XXXXX-XXXX
+            return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7)}`
+          } else if (numeros.length > 11) {
+            // Pode ter código do país, remover e formatar
+            const semPais = numeros.slice(-11) // Últimos 11 dígitos
+            return `(${semPais.slice(0, 2)}) ${semPais.slice(2, 7)}-${semPais.slice(7)}`
+          }
+          
+          return telefone // Retorna original se não conseguir formatar
+        }
+
+        const formatarMetragem = (metragem: number | string | null | undefined): string => {
+          if (!metragem) return 'Não informado'
+          const num = typeof metragem === 'string' ? parseFloat(metragem) : metragem
+          if (isNaN(num) || num <= 0) return 'Não informado'
+          return `${num.toLocaleString('pt-BR')} m²`
+        }
+
+        const formatarData = (data: string | Date | null | undefined): string => {
+          if (!data) return 'Não informado'
+          
+          // Se for string no formato YYYY-MM-DD (data DATE do PostgreSQL), tratar como data local
+          if (typeof data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data)) {
+            const [ano, mes, dia] = data.split('-').map(Number)
+            return `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}/${ano}`
+          }
+          
+          // Para outros formatos, usar conversão padrão
+          try {
+            const dataObj = typeof data === 'string' ? new Date(data) : data
+            if (isNaN(dataObj.getTime())) return 'Não informado'
+            return dataObj.toLocaleDateString('pt-BR', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric'
+            })
+          } catch {
+            return 'Não informado'
+          }
+        }
+
         // Preparar variáveis para o template
         const tipoImovelLabels: Record<string, string> = {
           casa: 'Casa',
@@ -233,28 +316,70 @@ export async function POST(request: NextRequest) {
 
         const tipoImovel = tipoImovelLabels[orcamento.tipo_imovel] || orcamento.tipo_imovel
 
+        // Preparar número do WhatsApp do cliente para o link
+        const whatsappCliente = orcamento.telefone_cliente || orcamento.whatsapp || ''
+        // Remover caracteres não numéricos e garantir formato internacional
+        const whatsappNumeros = whatsappCliente.replace(/\D/g, '')
+        // Se não começar com 55 (código do Brasil), adicionar
+        const whatsappFormatado = whatsappNumeros.startsWith('55') 
+          ? whatsappNumeros 
+          : `55${whatsappNumeros}`
+        // Criar URL do WhatsApp com mensagem pré-formatada
+        // Formatar origem e destino para mensagem WhatsApp
+        const origemFormatada = (() => {
+          const origem = orcamento.origem_completo || '';
+          const cidadeEstado = orcamento.cidade_origem && orcamento.estado_origem 
+            ? `${orcamento.cidade_origem}, ${orcamento.estado_origem}` 
+            : '';
+          if (origem && cidadeEstado && origem.trim() !== cidadeEstado.trim()) {
+            return `${origem} (${cidadeEstado})`;
+          }
+          return origem || cidadeEstado || 'Não informado';
+        })();
+        const destinoFormatado = (() => {
+          const destino = orcamento.destino_completo || '';
+          const cidadeEstado = orcamento.cidade_destino && orcamento.estado_destino 
+            ? `${orcamento.cidade_destino}, ${orcamento.estado_destino}` 
+            : '';
+          if (destino && cidadeEstado && destino.trim() !== cidadeEstado.trim()) {
+            return `${destino} (${cidadeEstado})`;
+          }
+          return destino || cidadeEstado || 'Não informado';
+        })();
+        
+        const mensagemWhatsApp = encodeURIComponent(
+          `Olá ${orcamento.nome_cliente}! Vi seu orçamento de mudança de ${origemFormatada} para ${destinoFormatado} e gostaria de ajudar.`
+        )
+        const urlWhatsApp = whatsappNumeros 
+          ? `https://wa.me/${whatsappFormatado}?text=${mensagemWhatsApp}`
+          : '#'
+
         const variables = {
           codigo_orcamento: orcamento.codigo_orcamento || '',
           nome_cliente: orcamento.nome_cliente,
           email_cliente: orcamento.email_cliente,
-          telefone_cliente: orcamento.telefone_cliente || orcamento.whatsapp,
-          origem_completo: orcamento.origem_completo,
-          destino_completo: orcamento.destino_completo,
+          telefone_cliente: formatarTelefone(whatsappCliente),
+          origem_completo: origemFormatada,
+          destino_completo: destinoFormatado,
           tipo_imovel: tipoImovel,
-          metragem: orcamento.metragem || 'Não informado',
+          metragem: formatarMetragem(orcamento.metragem),
           distancia_km: orcamento.distancia_km?.toString() || '0',
-          preco_min: orcamento.preco_min?.toLocaleString('pt-BR') || '0',
-          preco_max: orcamento.preco_max?.toLocaleString('pt-BR') || '0',
-          data_estimada: orcamento.data_estimada 
-            ? new Date(orcamento.data_estimada).toLocaleDateString('pt-BR')
-            : 'Não informado',
+          preco_min: orcamento.preco_min?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00',
+          preco_max: orcamento.preco_max?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00',
+          data_estimada: formatarData(orcamento.data_estimada),
           lista_objetos: orcamento.lista_objetos || '',
+          url_whatsapp: urlWhatsApp,
           empresa_nome: hotsite.nome_exibicao,
           empresa_email: hotsite.email
         }
 
         // Processar template
-        const templateResult = await processEmailTemplate('orcamento_empresa', variables)
+        // IMPORTANTE: Passar orcamento_id e hotsite_id para reutilizar código de rastreamento existente
+        const templateResult = await processEmailTemplate('orcamento_empresa', variables, {
+          orcamento_id: orcamento.id,
+          hotsite_id: hotsite.id,
+          tipo_email: 'orcamento_empresa'
+        })
         if (!templateResult) {
           throw new Error('Template de email não encontrado ou inativo')
         }
@@ -273,6 +398,7 @@ export async function POST(request: NextRequest) {
 
         // Enviar email
         // replyTo será o email da empresa (destinatária) para que respostas voltem para ela
+        // IMPORTANTE: Passar orcamento_id e hotsite_id no metadata para relacionar logs
         const sendResult = await emailService.sendEmail(
           {
             to: hotsite.email,
@@ -280,7 +406,11 @@ export async function POST(request: NextRequest) {
             html: templateResult.html,
             from: emailConfig.from_email,
             fromName: emailConfig.from_name,
-            replyTo: hotsite.email // Email da empresa destinatária
+            replyTo: hotsite.email, // Email da empresa destinatária
+            metadata: {
+              orcamento_id: orcamento.id,
+              hotsite_id: hotsite.id
+            }
           },
           serviceConfig
         )

@@ -39,12 +39,18 @@ export async function GET() {
       : data.valor
 
     // Garantir que todos os campos estão presentes
+    // Se from_name for "contato" ou vazio, usar "MudaTech" como padrão
+    let fromName = configValue.from_name || 'MudaTech'
+    if (fromName.toLowerCase().trim() === 'contato' || fromName.trim() === '') {
+      fromName = 'MudaTech'
+    }
+    
     const config = {
       provider: configValue.provider || null,
       api_key: configValue.api_key || '',
       server_id: configValue.server_id || '',
       from_email: configValue.from_email || '',
-      from_name: configValue.from_name || 'MudaTech',
+      from_name: fromName,
       reply_to: configValue.reply_to || '',
       test_email: configValue.test_email || process.env.EMAIL_TEST_TO || process.env.ADMIN_EMAIL || '',
       ativo: configValue.ativo || false,
@@ -103,12 +109,18 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient()
 
     // Preparar objeto de configuração completo (garantir que server_id está incluído)
+    // Se from_name for "contato" ou vazio, usar "MudaTech" como padrão
+    let fromName = config.from_name || 'MudaTech'
+    if (fromName.toLowerCase().trim() === 'contato' || fromName.trim() === '') {
+      fromName = 'MudaTech'
+    }
+    
     const configToSave = {
       provider: config.provider,
       api_key: config.api_key,
       server_id: config.server_id || null, // Incluir server_id mesmo se vazio
       from_email: config.from_email,
-      from_name: config.from_name || 'MudaTech',
+      from_name: fromName,
       reply_to: config.reply_to || '',
       test_email: config.test_email || null, // Email para modo de teste
       ativo: config.ativo || false,

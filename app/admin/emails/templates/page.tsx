@@ -23,6 +23,7 @@ interface EmailTemplate {
 
 const TIPOS_TEMPLATE = [
   { tipo: 'orcamento_empresa', nome: 'Orçamento para Empresa', descricao: 'Enviado quando um novo orçamento é criado' },
+  { tipo: 'orcamento_cliente', nome: 'Orçamento para Cliente', descricao: 'Enviado ao cliente que preencheu o orçamento, com detalhes e lista de empresas' },
   { tipo: 'campanha_vencendo_1dia', nome: 'Campanha Vencendo (1 dia antes)', descricao: 'Enviado 1 dia antes do vencimento' },
   { tipo: 'campanha_vencendo_hoje', nome: 'Campanha Vencendo (Hoje)', descricao: 'Enviado no dia do vencimento' },
   { tipo: 'campanha_ativada', nome: 'Campanha Ativada', descricao: 'Enviado ao ativar uma campanha' },

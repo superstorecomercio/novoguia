@@ -60,12 +60,18 @@ export async function getEmailConfig(): Promise<EmailConfig | null> {
     })
 
     // Garantir que todos os campos estão presentes com valores padrão
+    // Se from_name for "contato" ou vazio, usar "MudaTech" como padrão
+    let fromName = configValue.from_name || 'MudaTech'
+    if (fromName.toLowerCase().trim() === 'contato' || fromName.trim() === '') {
+      fromName = 'MudaTech'
+    }
+    
     const finalConfig = {
       provider: configValue.provider || null,
       api_key: configValue.api_key || '',
       server_id: configValue.server_id || '',
       from_email: configValue.from_email || '',
-      from_name: configValue.from_name || 'MudaTech',
+      from_name: fromName,
       reply_to: configValue.reply_to || '',
       ativo: configValue.ativo || false,
       testado: configValue.testado || false,

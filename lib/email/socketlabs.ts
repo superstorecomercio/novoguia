@@ -10,6 +10,12 @@ interface EmailOptions {
   from: string
   fromName?: string
   replyTo?: string
+  // Informações adicionais para relacionar logs
+  metadata?: {
+    orcamento_id?: string
+    hotsite_id?: string
+    campanha_id?: string
+  }
 }
 
 interface ConfigOptions {
@@ -198,6 +204,10 @@ export async function sendEmail(
         email_destinatario: Array.isArray(options.to) ? options.to.join(', ') : options.to,
         assunto: options.subject,
         enviado_em: new Date().toISOString(),
+        // Incluir orcamento_id e hotsite_id se disponíveis
+        orcamento_id: options.metadata?.orcamento_id || null,
+        hotsite_id: options.metadata?.hotsite_id || null,
+        campanha_id: options.metadata?.campanha_id || null,
         metadata: {
           provider: 'socketlabs',
           from: options.from,
@@ -331,6 +341,10 @@ export async function sendEmail(
         email_destinatario: Array.isArray(options.to) ? options.to.join(', ') : options.to,
         assunto: options.subject,
         enviado_em: new Date().toISOString(),
+        // Incluir orcamento_id e hotsite_id se disponíveis
+        orcamento_id: options.metadata?.orcamento_id || null,
+        hotsite_id: options.metadata?.hotsite_id || null,
+        campanha_id: options.metadata?.campanha_id || null,
         metadata: {
           provider: 'socketlabs',
           from: options.from,

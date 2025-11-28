@@ -80,13 +80,27 @@ function validarData(data) {
   const partes = dataFormatada.split('/');
   if (partes.length === 3) {
     const [dia, mes, ano] = partes;
-    const dataObj = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
+    const diaNum = parseInt(dia, 10);
+    const mesNum = parseInt(mes, 10);
+    const anoNum = parseInt(ano, 10);
+    
+    // Validar se a data é válida (sem usar Date para evitar problemas de timezone)
+    if (diaNum < 1 || diaNum > 31 || mesNum < 1 || mesNum > 12 || anoNum < 2024) {
+      return false;
+    }
+    
+    // Verificar se a data não é no passado usando UTC para evitar problemas de timezone
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0); // Zerar horas para comparar apenas a data
+    const hojeUTC = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate()));
+    const dataObjUTC = new Date(Date.UTC(anoNum, mesNum - 1, diaNum));
     
     // Verificar se a data é válida e não é no passado
-    if (dataObj >= hoje) {
-      return `${ano}-${mes}-${dia}`; // Retornar no formato YYYY-MM-DD para o banco
+    if (dataObjUTC >= hojeUTC) {
+      // Retornar diretamente no formato YYYY-MM-DD sem usar conversão de timezone
+      // Garantir que dia e mês tenham 2 dígitos
+      const diaFormatado = String(diaNum).padStart(2, '0');
+      const mesFormatado = String(mesNum).padStart(2, '0');
+      return `${anoNum}-${mesFormatado}-${diaFormatado}`; // Retornar no formato YYYY-MM-DD para o banco
     }
   }
   
@@ -122,7 +136,7 @@ async function processarMensagem(from, mensagem) {
       
       console.log(`📤 ENVIANDO mensagem de boas-vindas para ${from}`);
       marcarPerguntaEnviada(from);
-      await enviarMensagem(from, '👋 Olá! Sou a *Julia*!\n\nVou calcular o valor da sua mudança agora — e o melhor: o preço aparece na hora, em poucos segundos. No final, também te mostro quais empresas estão disponíveis para seu trajeto.\n\n📍 *Para começar, me diga: de onde você está saindo?*');
+      await enviarMensagem(from, '👋 Olá! Sou a *Julia*!\n\nVou calcular o valor da sua mudança agora — e o melhor: o preço aparece na hora, em poucos segundos. No final, também te mostro quais empresas estão disponíveis para seu trajeto.\n\n📍 *De onde você está saindo?*\n\n💡 Informe a cidade ou endereço completo');
       console.log(`✅ Mensagem enviada com sucesso para ${from}`);
       return;
     }
@@ -142,7 +156,7 @@ async function processarMensagem(from, mensagem) {
       
       if (tempoDesdeUltimaPergunta < tempoMinimo) {
         console.log(`[processarMensagem] Mensagem muito rápida de ${from}: ${tempoDesdeUltimaPergunta}ms após última pergunta`);
-        await enviarMensagem(from, '⏳ Aguarde um momento, estou processando... Por favor, aguarde minha resposta antes de digitar novamente.');
+        await enviarMensagem(from, '⏳ Aguarde um momento, estou processando... Por favor, responda minha pergunta novamente....');
         return;
       }
     }
@@ -158,7 +172,7 @@ async function processarMensagem(from, mensagem) {
       proximaEtapa(from);
       setProcessando(from, false);
       marcarPerguntaEnviada(from);
-      await enviarMensagem(from, '✅ Ótimo!\n\n🎯 *E para onde você está se mudando?*');
+      await enviarMensagem(from, '✅ Ótimo!\n\n🎯 *Para onde você está se mudando?*\n\n💡 Informe a cidade ou endereço completo');
     }
     
     else if (etapa === PERGUNTAS.DESTINO) {
@@ -436,8 +450,8 @@ async function finalizarOrcamento(from) {
 ✅ *ORÇAMENTO CALCULADO!*
 ${resultadoSalvamento && resultadoSalvamento.codigo_orcamento ? `\n🔖 *Código:* ${resultadoSalvamento.codigo_orcamento}\n` : ''}
 
-📍 *Origem:* ${resultadoIA.cidadeOrigem}, ${resultadoIA.estadoOrigem}
-🎯 *Destino:* ${resultadoIA.cidadeDestino}, ${resultadoIA.estadoDestino}
+📍 *Origem:* ${sessao.dados.origem ? `${sessao.dados.origem}${resultadoIA.cidadeOrigem && resultadoIA.estadoOrigem ? ` (${resultadoIA.cidadeOrigem}, ${resultadoIA.estadoOrigem})` : ''}` : `${resultadoIA.cidadeOrigem}, ${resultadoIA.estadoOrigem}`}
+🎯 *Destino:* ${sessao.dados.destino ? `${sessao.dados.destino}${resultadoIA.cidadeDestino && resultadoIA.estadoDestino ? ` (${resultadoIA.cidadeDestino}, ${resultadoIA.estadoDestino})` : ''}` : `${resultadoIA.cidadeDestino}, ${resultadoIA.estadoDestino}`}
 
 🏠 *Tipo:* ${tipoImovelLabels[sessao.dados.tipo_imovel] || sessao.dados.tipo_imovel}
 📏 *Metragem:* ${metragemLabels[sessao.dados.metragem] || sessao.dados.metragem || 'Não informado'}

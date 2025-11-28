@@ -44,11 +44,14 @@ export default function OrcamentosFilter({
   }
 
   const clearSearch = () => {
-    setSearch('')
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current)
     }
-    onSearch()
+    setSearch('')
+    // Aguardar um pouco para garantir que o estado foi atualizado antes de buscar
+    setTimeout(() => {
+      onSearch()
+    }, 100)
   }
 
   // Converter data para formato YYYY-MM-DD para input type="date"

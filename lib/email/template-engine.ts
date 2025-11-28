@@ -45,6 +45,7 @@ export function processTemplate(template: string, variables: TemplateVariables):
  */
 export function generateTrackingCode(): string {
   // Formato: MT-XXXXXXXX onde X é alfanumérico
+  // Garantir que sempre retorne em MAIÚSCULAS para consistência
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   let code = 'MT-'
   
@@ -52,6 +53,8 @@ export function generateTrackingCode(): string {
     code += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   
-  return code
+  // Garantir que está em maiúsculas (já está, mas garantir)
+  return code.toUpperCase()
 }
+
 

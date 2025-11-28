@@ -117,7 +117,7 @@ export const criarOrcamentoENotificar = async (
   
   const { data, error } = await supabase
     .rpc('criar_orcamento_e_notificar', {
-      p_orcamento_data: orcamentoData
+      p_dados: orcamentoData
     });
   
   if (error) {

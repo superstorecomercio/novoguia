@@ -51,16 +51,44 @@ export function formatDateTimeBR(dateString: string | Date | null | undefined): 
 
 /**
  * Formata apenas a data no formato brasileiro
- * @param dateString - Data em formato ISO string ou Date object
+ * Trata datas DATE (sem hora) corretamente, interpretando como data local
+ * @param dateString - Data em formato ISO string (YYYY-MM-DD) ou Date object
  * @returns String formatada: "DD/MM/AAAA"
  */
 export function formatDateOnlyBR(dateString: string | Date | null | undefined): string {
-  return formatDateBR(dateString, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'America/Sao_Paulo'
-  })
+  if (!dateString) return '-'
+
+  try {
+    // Se for string no formato YYYY-MM-DD (data DATE do PostgreSQL)
+    if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      // Interpretar como data local (não UTC) para evitar problemas de timezone
+      const [ano, mes, dia] = dateString.split('-').map(Number)
+      const dataLocal = new Date(ano, mes - 1, dia)
+      
+      // Verificar se a data é válida
+      if (isNaN(dataLocal.getTime())) {
+        return '-'
+      }
+      
+      // Formatar diretamente sem conversão de timezone
+      return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).format(dataLocal)
+    }
+    
+    // Para outros formatos, usar a função padrão
+    return formatDateBR(dateString, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'America/Sao_Paulo'
+    })
+  } catch (error) {
+    console.error('Erro ao formatar data:', error)
+    return '-'
+  }
 }
 
 /**
@@ -115,4 +143,5 @@ export function toBrazilTimezone(dateString: string | Date): Date {
 export function getNowBrazil(): Date {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
 }
+
 

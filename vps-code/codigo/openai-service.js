@@ -10,9 +10,18 @@ async function calcularOrcamentoComIA(dados) {
     const prompt = `
 Você é um especialista em mudanças residenciais e comerciais no Brasil.
 
-Dados da mudança:
-- Origem: ${dados.origem}
-- Destino: ${dados.destino}
+Dados da mudança (EXATAMENTE como o usuário informou):
+- Origem informada pelo usuário: "${dados.origem}"
+- Destino informado pelo usuário: "${dados.destino}"
+
+⚠️ ATENÇÃO CRÍTICA - REGRAS DE EXTRAÇÃO:
+1. Use APENAS as informações que o usuário forneceu explicitamente
+2. NÃO invente, NÃO adicione, NÃO assuma informações que não foram mencionadas
+3. Se o usuário informou apenas "rua das flores" (sem cidade), NÃO adicione cidade ou estado
+4. Se o usuário informou apenas "São Paulo" (sem estado), use APENAS "São Paulo" como cidade, NÃO adicione "SP"
+5. Se o usuário informou "São Paulo, SP", aí sim use cidade="São Paulo" e estado="SP"
+6. Para calcular distância: você PRECISA identificar AMBAS as cidades com certeza. Se não conseguir identificar uma das cidades, a distância deve ser 0km ou muito pequena
+7. Se origem="rua das flores" e destino="São Paulo", você NÃO consegue calcular distância correta (falta cidade da origem), então use distanciaKm=0
 - Tipo de imóvel: ${dados.tipo_imovel}
 - Metragem: ${dados.metragem || 'Não informado'}
 - Tem elevador: ${dados.tem_elevador ? 'Sim' : 'Não'}
@@ -65,18 +74,58 @@ IMPORTANTE: SEMPRE retorne apenas UMA faixa estimada completa que já inclua TOD
    - NÃO retorne duas faixas separadas (uma base e outra com adicionais)
    - A faixa retornada deve ser a MAIOR/MAIS COMPLETA possível
 
-IMPORTANTE: Retorne APENAS um JSON válido, sem texto adicional, markdown ou código. O JSON deve ter exatamente esta estrutura:
+IMPORTANTE - REGRAS CRÍTICAS PARA EXTRAÇÃO DE CIDADE, ESTADO E ENDEREÇO:
+1. SEMPRE extraia cidade e estado, mesmo de informações parciais
+2. Se o usuário informou endereço completo (ex: "Rua das Flores, 123, São Paulo, SP"):
+   - cidadeOrigem: "São Paulo"
+   - estadoOrigem: "SP"
+   - enderecoOrigem: "Rua das Flores, 123" (apenas o endereço, sem cidade/estado)
+3. Se o usuário informou apenas cidade (ex: "São Paulo"):
+   - cidadeOrigem: "São Paulo"
+   - estadoOrigem: "SP" (identifique o estado)
+   - enderecoOrigem: null (não há endereço)
+4. Se o usuário informou apenas endereço sem cidade (ex: "rua das flores"):
+   - cidadeOrigem: tente identificar a cidade ou use o texto como fallback
+   - estadoOrigem: tente identificar ou null
+   - enderecoOrigem: "rua das flores" (o texto informado)
+5. Se o usuário informou "rua das flores sp" ou similar:
+   - cidadeOrigem: "São Paulo" (identifique a cidade do estado)
+   - estadoOrigem: "SP"
+   - enderecoOrigem: "rua das flores" (apenas o endereço)
+6. NUNCA retorne null para cidadeOrigem ou cidadeDestino - sempre tente identificar ou use o texto informado como fallback
+7. enderecoOrigem e enderecoDestino devem conter APENAS o endereço (rua, número), SEM cidade e estado
+8. Para calcular distância: use as cidades identificadas. Se não conseguir identificar ambas, use 0km
+
+IMPORTANT: Retorne APENAS um JSON válido, sem texto adicional, markdown ou código. O JSON deve ter exatamente esta estrutura:
 
 {
-  "distanciaKm": número (distância em km entre origem e destino),
+  "distanciaKm": número (distância em km entre origem e destino - CALCULE CORRETAMENTE baseado APENAS nas cidades identificadas, se não conseguir identificar ambas as cidades, use 0),
   "precoMin": número (preço mínimo REALISTA em reais - SEMPRE use a faixa MAIOR/mais completa),
   "precoMax": número (preço máximo REALISTA em reais - SEMPRE use a faixa MAIOR/mais completa),
   "explicacao": "string (máximo 3 frases explicando o cálculo de forma clara)",
-  "cidadeOrigem": "string (nome da cidade de origem corrigido)",
-  "estadoOrigem": "string (sigla do estado de origem, ex: SP)",
-  "cidadeDestino": "string (nome da cidade de destino corrigido)",
-  "estadoDestino": "string (sigla do estado de destino, ex: SP)"
+  "cidadeOrigem": "string (nome da cidade de origem - SEMPRE preencha, extraia do texto informado ou use o texto como fallback)",
+  "estadoOrigem": "string (sigla do estado - SEMPRE tente identificar, use conhecimento geográfico se necessário)",
+  "enderecoOrigem": "string (endereço completo de origem se houver - ex: Rua das Flores, 123 - ou null se não houver)",
+  "cidadeDestino": "string (nome da cidade de destino - SEMPRE preencha, extraia do texto informado ou use o texto como fallback)",
+  "estadoDestino": "string (sigla do estado - SEMPRE tente identificar, use conhecimento geográfico se necessário)",
+  "enderecoDestino": "string (endereço completo de destino se houver - ex: Avenida Paulista, 1000 - ou null se não houver)"
 }
+
+EXEMPLOS DE EXTRAÇÃO CORRETA:
+- Origem: "rua das flores" → cidadeOrigem: "Rua das Flores", estadoOrigem: null, enderecoOrigem: "rua das flores"
+- Origem: "rua das flores sp" → cidadeOrigem: "São Paulo", estadoOrigem: "SP", enderecoOrigem: "rua das flores"
+- Origem: "São Paulo" → cidadeOrigem: "São Paulo", estadoOrigem: "SP", enderecoOrigem: null
+- Origem: "São Paulo, SP" → cidadeOrigem: "São Paulo", estadoOrigem: "SP", enderecoOrigem: null
+- Origem: "Rua das Flores, 123, São Paulo, SP" → cidadeOrigem: "São Paulo", estadoOrigem: "SP", enderecoOrigem: "Rua das Flores, 123"
+- Destino: "Rio de Janeiro" → cidadeDestino: "Rio de Janeiro", estadoDestino: "RJ", enderecoDestino: null
+- Destino: "Rio de Janeiro, RJ" → cidadeDestino: "Rio de Janeiro", estadoDestino: "RJ", enderecoDestino: null
+- Destino: "Teodoro sampaio" → cidadeDestino: "Teodoro Sampaio", estadoDestino: "SP", enderecoDestino: null
+- Destino: "Avenida Paulista, 1000, São Paulo, SP" → cidadeDestino: "São Paulo", estadoDestino: "SP", enderecoDestino: "Avenida Paulista, 1000"
+
+EXEMPLO DE CÁLCULO DE DISTÂNCIA:
+- Origem: "rua das flores sp", Destino: "São Paulo" → distanciaKm: 0 (mesma cidade/região)
+- Origem: "São Paulo", Destino: "Rio de Janeiro" → distanciaKm: 430 (distância real entre as cidades)
+- Origem: "São Paulo, SP", Destino: "São Paulo, SP" → distanciaKm: 0 (mesma cidade)
 
 CALCULE valores REALISTAS baseados nas regras acima. 
 

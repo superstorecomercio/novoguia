@@ -18,6 +18,9 @@ export async function GET(
 
     const supabase = createAdminClient()
 
+    // Normalizar código para maiúsculas e usar busca case-insensitive
+    const codigoNormalizado = codigo.trim().toUpperCase()
+
     const { data, error } = await supabase
       .from('email_tracking')
       .select(`
@@ -25,7 +28,7 @@ export async function GET(
         orcamentos(*),
         hotsites(*)
       `)
-      .eq('codigo_rastreamento', codigo.toUpperCase())
+      .ilike('codigo_rastreamento', codigoNormalizado)
       .single()
 
     if (error) {

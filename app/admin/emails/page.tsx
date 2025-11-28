@@ -89,9 +89,10 @@ type TabType = 'todos' | 'na_fila' | 'enviado' | 'erro' | 'parcial'
 type ViewMode = 'agrupado' | 'individual'
 
 export default function EmailsPage() {
-  const [orcamentos, setOrcamentos] = useState<OrcamentoEmail[]>([])
-  const [emailsIndividuais, setEmailsIndividuais] = useState<EmailIndividual[]>([])
-  const [todosEmailsIndividuais, setTodosEmailsIndividuais] = useState<EmailIndividual[]>([])
+  const [orcamentos, setOrcamentos] = useState<OrcamentoEmail[]>([]) // Lista filtrada para exibição
+  const [orcamentosCompletos, setOrcamentosCompletos] = useState<OrcamentoEmail[]>([]) // Lista completa para estatísticas
+  const [emailsIndividuais, setEmailsIndividuais] = useState<EmailIndividual[]>([]) // Lista filtrada para exibição
+  const [todosEmailsIndividuais, setTodosEmailsIndividuais] = useState<EmailIndividual[]>([]) // Lista completa para estatísticas
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabType>('todos')
   const [viewMode, setViewMode] = useState<ViewMode>('agrupado') // Modo de visualização
@@ -118,6 +119,7 @@ export default function EmailsPage() {
       setLoading(true)
       
       // Buscar orçamentos com empresas relacionadas
+      // EXCLUIR orçamentos sem empresas (status_envio_email = 'sem_empresas')
       let query = supabase
         .from('orcamentos')
         .select(`
@@ -128,6 +130,7 @@ export default function EmailsPage() {
           origem_completo,
           destino_completo,
           created_at,
+          status_envio_email,
           orcamentos_campanhas (
             id,
             hotsite_id,
@@ -142,6 +145,7 @@ export default function EmailsPage() {
             )
           )
         `)
+        .neq('status_envio_email', 'sem_empresas') // Excluir orçamentos sem empresas
         .order('created_at', { ascending: false })
         .limit(200)
 
@@ -160,10 +164,14 @@ export default function EmailsPage() {
           // Mas apenas se realmente não houver status definido
           const status = oc.status_envio_email || 'na_fila'
           
+          // Identificar se é email manual (nome começa com "E-mail Manual:")
+          const nomeHotsite = oc.hotsites?.nome_exibicao || 'N/A'
+          const isEmailManual = nomeHotsite.startsWith('E-mail Manual:')
+          
           return {
             id: oc.id,
             hotsite_id: oc.hotsite_id,
-            hotsite_nome: oc.hotsites?.nome_exibicao || 'N/A',
+            hotsite_nome: isEmailManual ? nomeHotsite : (oc.hotsites?.nome_exibicao || 'N/A'),
             hotsite_email: oc.hotsites?.email || 'N/A',
             status_envio_email: status,
             tentativas_envio: oc.tentativas_envio || 0,
@@ -241,27 +249,31 @@ export default function EmailsPage() {
       }
 
       // Filtrar orçamentos agrupados por tab (para modo agrupado)
-      let filtered = orcamentosProcessados
+      // EXCLUIR orçamentos sem empresas (total === 0)
+      let filtered = orcamentosProcessados.filter(o => o.resumo.total > 0)
       if (activeTab === 'na_fila') {
-        filtered = orcamentosProcessados.filter(o => o.resumo.na_fila > 0)
+        filtered = orcamentosProcessados.filter(o => o.resumo.total > 0 && o.resumo.na_fila > 0)
       } else if (activeTab === 'enviado') {
-        filtered = orcamentosProcessados.filter(o => o.resumo.todas_enviadas)
+        filtered = orcamentosProcessados.filter(o => o.resumo.total > 0 && o.resumo.todas_enviadas)
       } else if (activeTab === 'erro') {
-        filtered = orcamentosProcessados.filter(o => o.resumo.com_erro > 0)
+        filtered = orcamentosProcessados.filter(o => o.resumo.total > 0 && o.resumo.com_erro > 0)
       } else if (activeTab === 'parcial') {
         filtered = orcamentosProcessados.filter(o => 
+          o.resumo.total > 0 &&
           o.resumo.enviados > 0 && 
           o.resumo.enviados < o.resumo.total &&
           !o.resumo.todas_enviadas
         )
       } else if (activeTab === 'todos') {
-        // Todos os orçamentos
-        filtered = orcamentosProcessados
+        // Todos os orçamentos (mas excluir os sem empresas)
+        filtered = orcamentosProcessados.filter(o => o.resumo.total > 0)
       }
 
-      setOrcamentos(filtered)
-      setEmailsIndividuais(filteredEmails)
-      setTodosEmailsIndividuais(todosEmailsIndividuais) // Guardar todos para calcular estatísticas
+      // IMPORTANTE: Salvar as listas completas e filtradas separadamente
+      setOrcamentos(filtered) // Lista filtrada para exibição
+      setOrcamentosCompletos(orcamentosProcessados) // Lista completa para estatísticas
+      setEmailsIndividuais(filteredEmails) // Lista filtrada para exibição
+      setTodosEmailsIndividuais(todosEmailsIndividuais) // Lista completa para estatísticas
     } catch (error) {
       console.error('Erro ao buscar orçamentos:', error)
     } finally {
@@ -311,6 +323,8 @@ export default function EmailsPage() {
   const handleRecolocarFila = async (orcamentoId: string, empresaId?: string) => {
     try {
       setProcessing(`${orcamentoId}-${empresaId || 'all'}`)
+      console.log('🔄 [Frontend] Recolocando na fila:', { orcamentoId, empresaId })
+      
       const response = await fetch('/api/admin/emails/recolocar-fila', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,14 +332,16 @@ export default function EmailsPage() {
       })
 
       const data = await response.json()
+      console.log('📥 [Frontend] Resposta da API:', data)
 
       if (!response.ok) {
         throw new Error(data.error || 'Erro ao recolocar na fila')
       }
 
-      alert('Orçamento recolocado na fila com sucesso!')
+      alert(data.message || 'Orçamento recolocado na fila com sucesso!')
       fetchOrcamentos()
     } catch (error: any) {
+      console.error('❌ [Frontend] Erro ao recolocar na fila:', error)
       alert(`Erro ao recolocar na fila: ${error.message}`)
     } finally {
       setProcessing(null)
@@ -363,28 +379,29 @@ export default function EmailsPage() {
   }
 
   // Estatísticas: Modo agrupado mostra orçamentos, modo individual mostra emails
+  // IMPORTANTE: Usar listas COMPLETAS para calcular estatísticas, não as filtradas
   const stats = {
     todos: viewMode === 'agrupado' 
-      ? orcamentos.length 
+      ? orcamentosCompletos.length 
       : todosEmailsIndividuais.length,
     na_fila: viewMode === 'agrupado'
-      ? orcamentos.filter(o => o.resumo.na_fila > 0).length
+      ? orcamentosCompletos.filter(o => o.resumo.na_fila > 0).length
       : todosEmailsIndividuais.filter(e => e.status_envio_email === 'na_fila').length,
     enviado: viewMode === 'agrupado'
-      ? orcamentos.filter(o => o.resumo.todas_enviadas).length
+      ? orcamentosCompletos.filter(o => o.resumo.todas_enviadas).length
       : todosEmailsIndividuais.filter(e => e.status_envio_email === 'enviado').length,
     erro: viewMode === 'agrupado'
-      ? orcamentos.filter(o => o.resumo.com_erro > 0).length
+      ? orcamentosCompletos.filter(o => o.resumo.com_erro > 0).length
       : todosEmailsIndividuais.filter(e => e.status_envio_email === 'erro').length,
     parcial: viewMode === 'agrupado'
-      ? orcamentos.filter(o => 
+      ? orcamentosCompletos.filter(o => 
           o.resumo.enviados > 0 && 
           o.resumo.enviados < o.resumo.total &&
           !o.resumo.todas_enviadas
         ).length
       : todosEmailsIndividuais.filter(e => {
-          // Encontrar o orçamento deste email
-          const orc = orcamentos.find(o => o.id === e.orcamento_id)
+          // Encontrar o orçamento deste email na lista completa
+          const orc = orcamentosCompletos.find(o => o.id === e.orcamento_id)
           if (!orc) return false
           // Verificar se o orçamento é parcial (alguns enviados, mas não todos)
           return orc.resumo.enviados > 0 && 
@@ -806,7 +823,13 @@ export default function EmailsPage() {
                         <div className="flex gap-2">
                           {!orcamento.resumo.todas_enviadas && (
                             <button
-                              onClick={() => handleEnviarEmail(orcamento.id)}
+                              onClick={() => {
+                                const totalEmails = orcamento.resumo.na_fila + orcamento.resumo.com_erro
+                                if (!confirm(`⚠️ ATENÇÃO\n\nVocê está prestes a enviar ${totalEmails} email(s) para ${orcamento.resumo.total} empresa(s) relacionadas a este orçamento.\n\nDeseja continuar?`)) {
+                                  return
+                                }
+                                handleEnviarEmail(orcamento.id)
+                              }}
                               disabled={processing?.startsWith(orcamento.id) || false}
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium disabled:opacity-50"
                             >
@@ -816,7 +839,12 @@ export default function EmailsPage() {
                           )}
                           {orcamento.resumo.todas_enviadas && (
                             <button
-                              onClick={() => handleRecolocarFila(orcamento.id)}
+                              onClick={() => {
+                                if (!confirm(`⚠️ ATENÇÃO\n\nVocê está prestes a recolocar ${orcamento.resumo.total} email(s) na fila de envio.\n\nIsso irá resetar o status de envio para todas as empresas deste orçamento.\n\nDeseja continuar?`)) {
+                                  return
+                                }
+                                handleRecolocarFila(orcamento.id)
+                              }}
                               disabled={processing?.startsWith(orcamento.id) || false}
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-xs font-medium disabled:opacity-50"
                             >

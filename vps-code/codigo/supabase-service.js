@@ -55,19 +55,22 @@ async function salvarOrcamento(dados, resultadoIA) {
       whatsapp: dados.whatsapp,                    // ✅ mantém também
       data_estimada: dados.data_estimada || null,  // ✅ snake_case
       
-      // Textos validados pela IA com _completo (usar dados da IA, não os brutos)
-      origem_completo: resultadoIA.cidadeOrigem && resultadoIA.estadoOrigem 
+      // Textos completos: usar endereço original digitado pelo usuário (pode ser rua completa ou apenas cidade)
+      origem_completo: dados.origem || (resultadoIA.cidadeOrigem && resultadoIA.estadoOrigem 
         ? `${resultadoIA.cidadeOrigem}, ${resultadoIA.estadoOrigem}`
-        : dados.origem,  // Fallback para dados brutos se IA não retornar
-      destino_completo: resultadoIA.cidadeDestino && resultadoIA.estadoDestino
+        : resultadoIA.cidadeOrigem || 'Não informado'),
+      destino_completo: dados.destino || (resultadoIA.cidadeDestino && resultadoIA.estadoDestino
         ? `${resultadoIA.cidadeDestino}, ${resultadoIA.estadoDestino}`
-        : dados.destino,  // Fallback para dados brutos se IA não retornar
+        : resultadoIA.cidadeDestino || 'Não informado'),
       
       // Dados extraídos pela IA (snake_case)
-      estado_origem: resultadoIA.estadoOrigem,     // ✅ snake_case
-      cidade_origem: resultadoIA.cidadeOrigem,     // ✅ snake_case
-      estado_destino: resultadoIA.estadoDestino,   // ✅ snake_case
-      cidade_destino: resultadoIA.cidadeDestino,   // ✅ snake_case
+      // SEMPRE preencher cidade - usar resultado da IA ou fallback para o texto original
+      estado_origem: resultadoIA.estadoOrigem || null,
+      cidade_origem: resultadoIA.cidadeOrigem || dados.origem || 'Não informado',  // Fallback para texto original se IA não identificar
+      endereco_origem: resultadoIA.enderecoOrigem || null,  // Endereço completo se houver
+      estado_destino: resultadoIA.estadoDestino || null,
+      cidade_destino: resultadoIA.cidadeDestino || dados.destino || 'Não informado',  // Fallback para texto original se IA não identificar
+      endereco_destino: resultadoIA.enderecoDestino || null,  // Endereço completo se houver
       
       // Detalhes da mudança (snake_case)
       tipo_imovel: tipoImovelMap[dados.tipo_imovel] || dados.tipo_imovel,  // ✅ snake_case
@@ -94,8 +97,9 @@ async function salvarOrcamento(dados, resultadoIA) {
     console.log('Chamando função SQL com payload:', orcamentoData);
 
     // ✅ Passar como um único objeto JSONB
+    // IMPORTANTE: A função SQL espera o parâmetro 'p_dados', não 'p_orcamento_data'
     const { data, error } = await supabase.rpc('criar_orcamento_e_notificar', {
-      p_orcamento_data: orcamentoData
+      p_dados: orcamentoData
     });
 
     if (error) {

@@ -152,3 +152,4 @@ Verifique:
 - Use `EMAIL_TEST_TO` para simular recebimento em um email específico
 - Limpe os logs periodicamente para melhor performance
 
+

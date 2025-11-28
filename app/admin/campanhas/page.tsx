@@ -10,41 +10,42 @@ export default function CampanhasPage() {
   const [planosDisponiveis, setPlanosDisponiveis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        console.log('🔄 Carregando campanhas...');
-        const response = await fetch('/api/admin/campanhas/list');
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
-          throw new Error(errorData.error || 'Erro ao carregar campanhas');
-        }
-        
-        const data = await response.json();
-        console.log('✅ Dados carregados:', {
-          campanhas: data.campanhas?.length || 0,
-          hotsites: data.hotsites?.length || 0,
-          planos: data.planos?.length || 0,
-        });
-
-        if (!data.campanhas) {
-          console.error('❌ Dados inválidos: campanhas não encontradas');
-          return;
-        }
-
-        setCampanhasFormatadas(data.campanhas || []);
-        setFilteredCampanhas(data.campanhas || []); // Inicialmente, todas as campanhas estão filtradas
-        setHotsitesDisponiveis(data.hotsites || []);
-        setPlanosDisponiveis(data.planos || []);
-      } catch (error: any) {
-        console.error('❌ Erro ao carregar dados:', error);
-        alert(`Erro ao carregar campanhas: ${error.message || 'Erro desconhecido'}`);
-      } finally {
-        setLoading(false);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Carregando campanhas...');
+      const response = await fetch('/api/admin/campanhas/list');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+        throw new Error(errorData.error || 'Erro ao carregar campanhas');
       }
-    }
+      
+      const data = await response.json();
+      console.log('✅ Dados carregados:', {
+        campanhas: data.campanhas?.length || 0,
+        hotsites: data.hotsites?.length || 0,
+        planos: data.planos?.length || 0,
+      });
 
+      if (!data.campanhas) {
+        console.error('❌ Dados inválidos: campanhas não encontradas');
+        return;
+      }
+
+      setCampanhasFormatadas(data.campanhas || []);
+      setFilteredCampanhas(data.campanhas || []); // Inicialmente, todas as campanhas estão filtradas
+      setHotsitesDisponiveis(data.hotsites || []);
+      setPlanosDisponiveis(data.planos || []);
+    } catch (error: any) {
+      console.error('❌ Erro ao carregar dados:', error);
+      alert(`Erro ao carregar campanhas: ${error.message || 'Erro desconhecido'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -133,6 +134,7 @@ export default function CampanhasPage() {
         hotsites={hotsitesDisponiveis || []}
         planos={planosDisponiveis || []}
         onFilteredCampanhasChange={setFilteredCampanhas}
+        onReload={loadData}
       />
     </div>
   );

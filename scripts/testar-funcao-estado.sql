@@ -34,3 +34,4 @@ FROM buscar_hotsites_ativos_por_estado('SP', 'mudanca');
 
 
 
+

@@ -7,18 +7,22 @@ export async function GET() {
     const supabase = createAdminClient();
 
     // Buscar campanhas com hotsites relacionados (usando hotsite_id)
+    // Filtrar campanhas de e-mail manual (participa_cotacao = false) - não devem aparecer na lista
     const { data: campanhas, error } = await supabase
       .from('campanhas')
       .select(`
         id,
         hotsite_id,
         empresa_id,
+        plano_id,
         data_inicio,
         data_fim,
         valor_mensal,
         ativo,
         participa_cotacao,
         limite_orcamentos_mes,
+        envia_email_ativacao,
+        created_at,
         hotsite:hotsites!hotsite_id(
           id,
           nome_exibicao,
@@ -40,9 +44,11 @@ export async function GET() {
         planos(
           id,
           nome,
-          ordem
+          ordem,
+          preco
         )
       `)
+      .or('participa_cotacao.is.null,participa_cotacao.eq.true') // Excluir apenas campanhas de e-mail manual (participa_cotacao = false)
       .order('data_inicio', { ascending: false });
 
     if (error) {
@@ -84,17 +90,21 @@ export async function GET() {
         hotsite_id: c.hotsite_id,
         empresa_id: c.empresa_id,
         empresa_nome: empresaNome,
+        plano_id: c.plano_id || null, // ID do plano para edição
         plano_nome: c.planos?.nome || 'Sem plano',
         plano_ordem: c.planos?.ordem || 999,
         cidade_nome: cidadeNome,
         tipoempresa: tipoEmpresa,
         email: hotsite?.email || '', // Email do hotsite
+        telefone1: hotsite?.telefone1 || '', // Telefone1 do hotsite
         data_inicio: c.data_inicio,
         data_fim: c.data_fim,
         valor: c.valor_mensal || 0,
         ativo,
         participa_cotacao: c.participa_cotacao,
         limite_orcamentos_mes: c.limite_orcamentos_mes,
+        envia_email_ativacao: c.envia_email_ativacao || false,
+        created_at: c.created_at,
       };
     }) || [];
 
@@ -114,7 +124,7 @@ export async function GET() {
       
       const { data: hotsitesPage } = await supabase
         .from('hotsites')
-        .select('id, nome_exibicao, cidade:cidades(nome, estado)')
+        .select('id, nome_exibicao, email, telefone1, tipoempresa, cidade:cidades(nome, estado)')
         .order('nome_exibicao', { ascending: true })
         .range(start, end);
       
@@ -125,7 +135,7 @@ export async function GET() {
 
     const { data: planos } = await supabase
       .from('planos')
-      .select('id, nome, ordem')
+      .select('id, nome, ordem, preco')
       .order('ordem', { ascending: true });
 
     console.log(`✅ [API] Retornando: ${campanhasFormatadas.length} campanhas, ${allHotsites.length} hotsites, ${planos?.length || 0} planos`);

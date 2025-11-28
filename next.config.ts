@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   trailingSlash: false,
   // Excluir pasta painel do build (subprojeto separado)
   pageExtensions: ['ts', 'tsx', 'js', 'jsx'],
+  // Configuração para Sharp (necessário para processamento de imagens na Vercel)
+  // A Vercel instala automaticamente o Sharp, mas precisamos garantir que está configurado
+  serverExternalPackages: ['sharp'],
   // Suprimir warnings de módulos opcionais não instalados
   webpack: (config, { isServer }) => {
     // Ignorar módulos opcionais de email que podem não estar instalados
@@ -42,6 +45,11 @@ const nextConfig: NextConfig = {
       /Failed to resolve module.*nodemailer/,
       // Padrões específicos do Turbopack
       /\.\/lib\/email\/(resend|sendgrid|nodemailer)/,
+      // Ignorar erros da pasta painel (subprojeto separado, agora na raiz)
+      /^painel\//,
+      /tw-animate-css/,
+      /@vercel\/analytics/,
+      /^ai$/,
     ];
     
     return config;

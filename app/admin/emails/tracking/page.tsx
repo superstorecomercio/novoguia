@@ -63,6 +63,9 @@ export default function EmailTrackingPage() {
 
     try {
       setLoading(true)
+      const codigoBusca = searchCode.trim().toUpperCase()
+      
+      // Usar ilike para busca case-insensitive e permitir busca parcial
       const { data, error } = await supabase
         .from('email_tracking')
         .select(`
@@ -71,11 +74,16 @@ export default function EmailTrackingPage() {
           campanhas(*),
           hotsites(*)
         `)
-        .eq('codigo_rastreamento', searchCode.toUpperCase())
-        .single()
+        .ilike('codigo_rastreamento', `%${codigoBusca}%`)
+        .order('enviado_em', { ascending: false })
+        .limit(50)
 
-      if (error) throw error
-      setTrackings(data ? [data] : [])
+      if (error) {
+        console.error('Erro na busca:', error)
+        throw error
+      }
+      
+      setTrackings(data || [])
     } catch (error) {
       console.error('Erro ao buscar tracking:', error)
       setTrackings([])

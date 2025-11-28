@@ -124,3 +124,4 @@ Todas as correções foram consolidadas em `024_padronizar_schema_SAFE.sql`.
 
 
 
+

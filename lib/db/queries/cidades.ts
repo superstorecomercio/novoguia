@@ -163,8 +163,9 @@ export const getCidadeBySlug = async (slug: string): Promise<City | null> => {
       .from('campanhas')
       .select('hotsite_id')
       .eq('ativo', true)
-      .lte('data_inicio', hoje)
-      .or(`data_fim.is.null,data_fim.gte.${hoje}`);
+      .lte('data_inicio', hoje);
+      // REMOVIDO: .or(`data_fim.is.null,data_fim.gte.${hoje}`)
+      // Agora apenas verifica se ativo = true, ignorando data de vencimento
     
     const hotsiteIdsAtivos = new Set<string>();
     campanhasAtivas?.forEach((c: any) => {
