@@ -1,6 +1,6 @@
-# Ignorar pasta painel (subprojeto separado, agora na raiz)
+# Ignorar pasta painel (subprojeto separado na raiz, mas não app/painel que está integrado)
 painel/
-**/painel/**
+# Não ignorar app/painel e app/components/painel que estão integrados ao projeto
 
 # Ignorar scripts de migração
 scripts/

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle2, Loader2, Building2 } from 'lucide-react'
 import { Button } from '@/app/components/ui/button'
 import { Card } from '@/app/components/ui/card'
 
-export default function CadastroPage() {
+function CadastroForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const planoId = searchParams.get('plano')
@@ -518,6 +518,18 @@ export default function CadastroPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function CadastroPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <CadastroForm />
+    </Suspense>
   )
 }
 
