@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import "../globals.css"
 import { ServiceWorkerRegistration } from "../components/painel/ServiceWorkerRegistration"
 import { PWAMetaTags } from "../components/painel/PWAMetaTags"
+import { AuthGuard } from "../components/painel/AuthGuard"
 
 export const metadata: Metadata = {
   title: "MudaTech - Dashboard de Mudanças",
@@ -41,7 +42,7 @@ export default function PainelLayout({
     <>
       <PWAMetaTags />
       <ServiceWorkerRegistration />
-      {children}
+      <AuthGuard>{children}</AuthGuard>
     </>
   )
 }

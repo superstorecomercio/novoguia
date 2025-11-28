@@ -3,8 +3,9 @@
   "short_name": "MudaTech",
   "description": "Plataforma para gerenciar leads e propostas de mudanças",
   "start_url": "/painel/dashboard",
+  "scope": "/painel/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#2563eb",
   "theme_color": "#2563eb",
   "orientation": "portrait-primary",
   "icons": [

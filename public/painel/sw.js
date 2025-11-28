@@ -1,16 +1,24 @@
-const CACHE_NAME = "mudatech-painel-v2"
+const CACHE_NAME = "mudatech-painel-v3"
 const urlsToCache = [
   "/painel/dashboard",
-  "/painel/login",
-  "/painel/manifest.json"
+  "/painel/login"
 ]
 
 // Instalar Service Worker e cachear recursos
 self.addEventListener("install", (event) => {
+  console.log("[SW] Instalando Service Worker...")
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log("[SW] Cache aberto")
-      return cache.addAll(urlsToCache)
+      console.log("[SW] Cache aberto:", CACHE_NAME)
+      // Não falhar se alguma URL não puder ser cacheada
+      return Promise.allSettled(
+        urlsToCache.map(url => 
+          cache.add(url).catch(err => {
+            console.warn(`[SW] Não foi possível cachear ${url}:`, err)
+            return null
+          })
+        )
+      )
     }),
   )
   self.skipWaiting()
@@ -35,42 +43,78 @@ self.addEventListener("activate", (event) => {
 
 // Interceptar requisições
 self.addEventListener("fetch", (event) => {
-  // Ignorar requisições de API
-  if (event.request.url.includes("/api/")) {
+  const url = new URL(event.request.url)
+  
+  // Ignorar requisições de API - sempre buscar da rede (não cachear)
+  if (url.pathname.startsWith("/api/")) {
     return
   }
 
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Cache hit - retorna a resposta do cache
-      if (response) {
-        return response
-      }
+  // Ignorar requisições de outros domínios
+  if (url.origin !== location.origin) {
+    return
+  }
 
-      // Clone da requisição
-      const fetchRequest = event.request.clone()
-
-      return fetch(fetchRequest)
+  // Para páginas protegidas (dashboard), SEMPRE buscar da rede primeiro
+  // para garantir que o middleware possa verificar autenticação
+  if (url.pathname.startsWith("/painel/dashboard") || url.pathname === "/painel") {
+    event.respondWith(
+      fetch(event.request, {
+        credentials: "include", // Incluir cookies na requisição
+        cache: "no-store" // Não usar cache para páginas protegidas
+      })
         .then((response) => {
-          // Verifica se é uma resposta válida
-          if (!response || response.status !== 200 || response.type !== "basic") {
+          // Se a resposta foi um redirecionamento (301, 302, etc), seguir o redirecionamento
+          if (response.redirected) {
             return response
           }
-
-          // Clone da resposta
-          const responseToCache = response.clone()
-
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache)
-          })
-
+          // Se a resposta foi bem-sucedida, não cachear páginas protegidas
+          // para garantir que sempre verifique autenticação
           return response
         })
         .catch(() => {
-          // Se falhar, tenta retornar página offline
-          return caches.match("/painel/dashboard")
+          // Se falhar a rede, redirecionar para login
+          return Response.redirect(new URL("/painel/login", location.origin), 302)
         })
-    }),
+    )
+    return
+  }
+
+  // Para outras páginas (login, etc), usar estratégia Network First
+  event.respondWith(
+    fetch(event.request, {
+      credentials: "include"
+    })
+      .then((response) => {
+        // Se a resposta foi bem-sucedida, cachear apenas páginas públicas
+        if (response && response.status === 200 && url.pathname === "/painel/login") {
+          const responseToCache = response.clone()
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache)
+          })
+        }
+        return response
+      })
+      .catch(() => {
+        // Se falhar a rede, tentar do cache
+        console.log("[SW] Rede falhou, tentando cache para:", event.request.url)
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse
+          }
+          
+          // Se for uma navegação e não tiver no cache, redirecionar para login
+          if (event.request.mode === "navigate") {
+            return Response.redirect(new URL("/painel/login", location.origin), 302)
+          }
+          
+          // Para outros recursos, retornar erro
+          return new Response("Recurso não disponível offline", {
+            status: 503,
+            statusText: "Service Unavailable"
+          })
+        })
+      })
   )
 })
 

@@ -41,14 +41,25 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchUsuario = async () => {
       try {
-        const response = await fetch("/api/cliente/auth/me")
+        const response = await fetch("/api/cliente/auth/me", {
+          credentials: "include", // Garantir que cookies sejam enviados
+        })
         if (!response.ok) {
+          // Limpar qualquer token inválido
+          document.cookie = "cliente_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
           router.push("/painel/login")
           return
         }
         const data = await response.json()
+        if (!data.usuario) {
+          router.push("/painel/login")
+          return
+        }
         setUsuario(data.usuario)
       } catch (error) {
+        console.error("Erro ao verificar autenticação:", error)
+        // Limpar qualquer token inválido
+        document.cookie = "cliente_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
         router.push("/painel/login")
       } finally {
         setLoading(false)
