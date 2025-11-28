@@ -27,18 +27,21 @@ export function InstallPrompt() {
 
     // Se já está instalado, não mostrar
     if (standalone) {
+      console.log("[PWA] App já está instalado")
       return
     }
 
-    // Registrar Service Worker
+    // Registrar Service Worker PRIMEIRO (necessário para PWA)
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/painel/sw.js")
         .then((registration) => {
           console.log("[SW] Registrado com sucesso:", registration.scope)
+          // Aguardar um pouco para o SW estar ativo
+          return registration.update()
         })
         .catch((error) => {
-          console.log("[SW] Falha ao registrar:", error)
+          console.error("[SW] Falha ao registrar:", error)
         })
     }
 
@@ -47,7 +50,7 @@ export function InstallPrompt() {
       e.preventDefault()
       const promptEvent = e as BeforeInstallPromptEvent
       setDeferredPrompt(promptEvent)
-      console.log("[PWA] Evento beforeinstallprompt capturado")
+      console.log("[PWA] ✅ Evento beforeinstallprompt capturado - pronto para instalar!")
 
       // Verificar se já instalou antes
       const hasInstalled = localStorage.getItem("pwa-installed")
@@ -66,23 +69,27 @@ export function InstallPrompt() {
     
     // Log para debug
     console.log("[PWA] Aguardando evento beforeinstallprompt...")
+    console.log("[PWA] HTTPS:", window.location.protocol === 'https:')
+    console.log("[PWA] Localhost:", window.location.hostname === 'localhost')
 
     // Detectar se foi instalado
     window.addEventListener("appinstalled", () => {
+      console.log("[PWA] ✅ App instalado com sucesso!")
       localStorage.setItem("pwa-installed", "true")
       setShowPrompt(false)
       setIsStandalone(true)
     })
 
-    // Para iOS ou se não tiver o evento, mostrar botão manual após 2 segundos
-    if (iOS || !deferredPrompt) {
-      setTimeout(() => {
+    // Para iOS ou se não tiver o evento após 3 segundos, mostrar botão manual
+    setTimeout(() => {
+      if (!deferredPrompt) {
+        console.log("[PWA] ⚠️ Evento beforeinstallprompt não foi disparado")
         const hasDismissed = localStorage.getItem("pwa-dismissed")
-        if (!hasDismissed) {
+        if (!hasDismissed && !standalone) {
           setShowPrompt(true)
         }
-      }, 2000)
-    }
+      }
+    }, 3000)
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handler)
@@ -90,30 +97,37 @@ export function InstallPrompt() {
   }, [])
 
   const handleInstall = async () => {
+    console.log("[PWA] Botão de instalação clicado")
+    console.log("[PWA] deferredPrompt disponível:", !!deferredPrompt)
+    
     // Android/Chrome - usar prompt nativo
     if (deferredPrompt) {
       try {
+        console.log("[PWA] Chamando prompt nativo...")
         // Mostrar o prompt nativo do navegador
         await deferredPrompt.prompt()
         const { outcome } = await deferredPrompt.userChoice
 
+        console.log("[PWA] Resultado do prompt:", outcome)
+
         if (outcome === "accepted") {
           localStorage.setItem("pwa-installed", "true")
           setShowPrompt(false)
-          console.log("[PWA] Usuário aceitou a instalação")
+          console.log("[PWA] ✅ Usuário aceitou a instalação")
+          // O evento 'appinstalled' será disparado automaticamente
         } else {
-          console.log("[PWA] Usuário rejeitou a instalação")
+          console.log("[PWA] ❌ Usuário rejeitou a instalação")
         }
 
         setDeferredPrompt(null)
       } catch (error) {
-        console.error("[PWA] Erro ao mostrar prompt:", error)
+        console.error("[PWA] ❌ Erro ao mostrar prompt:", error)
         // Se falhar, mostrar instruções manuais
         setShowPrompt(true)
       }
     } else {
       // Se não tiver deferredPrompt, mostrar instruções
-      console.log("[PWA] deferredPrompt não disponível, mostrando instruções")
+      console.log("[PWA] ⚠️ deferredPrompt não disponível, mostrando instruções manuais")
       setShowPrompt(true)
     }
   }
@@ -175,12 +189,16 @@ export function InstallPrompt() {
             <CardContent className="pb-4 space-y-3">
               {deferredPrompt ? (
                 <>
-                  <Button onClick={handleInstall} className="w-full gap-2" size="lg">
+                  <Button 
+                    onClick={handleInstall} 
+                    className="w-full gap-2" 
+                    size="lg"
+                  >
                     <Download className="h-4 w-4" />
-                    Instalar Aplicativo Agora
+                    Instalar Agora
                   </Button>
                   <p className="text-xs text-center text-muted-foreground">
-                    Toque no botão acima para abrir o prompt de instalação do navegador
+                    O prompt de instalação aparecerá automaticamente ao clicar
                   </p>
                 </>
               ) : (
