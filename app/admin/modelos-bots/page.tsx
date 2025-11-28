@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle } from 'lucide-react'
+import { formatDateTimeBR } from '@/lib/utils/date'
 
 interface ModeloBot {
   id: string
@@ -98,7 +99,7 @@ export default function ModelosBotsPage() {
                     <p className="text-gray-600 mb-2">{modelo.descricao}</p>
                   )}
                   <p className="text-xs text-gray-400">
-                    Criado em: {new Date(modelo.created_at).toLocaleString('pt-BR')}
+                    Criado em: {formatDateTimeBR(modelo.created_at)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

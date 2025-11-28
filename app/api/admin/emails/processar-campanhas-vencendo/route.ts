@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { formatDateTimeBR } from '@/lib/utils/date'
 
 /**
  * API Route para processar campanhas vencendo e adicionar emails à fila
@@ -25,10 +26,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({
+    // Converter executado_em para timezone de São Paulo se existir
+    const responseData: any = {
       success: true,
-      ...data
-    })
+      sucesso: data?.sucesso ?? true,
+      emails_criados: data?.emails_criados ?? 0
+    }
+    
+    // Formatar executado_em para o timezone de São Paulo
+    if (data?.executado_em) {
+      responseData.executado_em = formatDateTimeBR(data.executado_em)
+    } else {
+      // Se não veio do SQL, usar a data atual formatada
+      responseData.executado_em = formatDateTimeBR(new Date())
+    }
+
+    return NextResponse.json(responseData)
   } catch (error: any) {
     console.error('Erro ao processar campanhas vencendo:', error)
     return NextResponse.json(

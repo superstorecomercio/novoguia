@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, FileCode, Eye, EyeOff } from 'lucide-react'
+import { formatDateTimeBR } from '@/lib/utils/date'
 
 interface BotFile {
   id: string
@@ -150,7 +151,7 @@ export default function ArquivosBotPage() {
                         <p className="text-sm text-gray-500 mt-1">{file.description}</p>
                       )}
                       <p className="text-xs text-gray-400 mt-1">
-                        Atualizado em: {new Date(file.updated_at).toLocaleString('pt-BR')}
+                        Atualizado em: {formatDateTimeBR(file.updated_at)}
                       </p>
                     </div>
                   </div>

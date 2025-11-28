@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { processEmailTemplate } from '@/lib/email/template-service'
+import { formatDateOnlyBR } from '@/lib/utils/date'
 
 /**
  * API para gerar preview do email de vencimento de campanha
@@ -68,17 +69,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Preparar variáveis para o template
-    const dataFim = campanha?.data_fim ? new Date(campanha.data_fim) : null
-    const diasRestantes = dataFim 
-      ? Math.ceil((dataFim.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-      : 0
+    // Formatar data_fim corretamente (evitar problemas de timezone)
+    const dataFimFormatada = formatDateOnlyBR(campanha?.data_fim) || ''
+    
+    // Calcular dias restantes usando a data corretamente
+    let diasRestantes = 0
+    if (campanha?.data_fim) {
+      // Se data_fim está no formato YYYY-MM-DD, parsear como data local
+      const dataFimStr = campanha.data_fim.split('T')[0] // Remover hora se houver
+      const [ano, mes, dia] = dataFimStr.split('-').map(Number)
+      const dataFimLocal = new Date(ano, mes - 1, dia)
+      const hoje = new Date()
+      hoje.setHours(0, 0, 0, 0)
+      diasRestantes = Math.ceil((dataFimLocal.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+    }
 
     // Buscar dados do plano
     const nomePlano = plano?.nome || 'Sem plano'
-    // Usar o preço do plano, não o valor_mensal da campanha
-    const valorPlano = plano?.preco || 0
-    const valorPlanoFormatado = valorPlano > 0 
-      ? `R$ ${valorPlano.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    // Usar o valor_mensal da campanha (valor cadastrado na campanha)
+    const valorCampanha = campanha?.valor_mensal || 0
+    const valorPlanoFormatado = valorCampanha > 0 
+      ? `R$ ${valorCampanha.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       : 'Não informado'
 
     const variables = {
@@ -89,8 +100,8 @@ export async function POST(request: NextRequest) {
       nome_campanha: hotsite.nome_exibicao || 'Campanha',
       nome_plano: nomePlano,
       valor_plano: valorPlanoFormatado,
-      data_fim: dataFim ? dataFim.toLocaleDateString('pt-BR') : '',
-      data_vencimento: dataFim ? dataFim.toLocaleDateString('pt-BR') : '',
+      data_fim: dataFimFormatada,
+      data_vencimento: dataFimFormatada,
       dias_restantes: diasRestantes.toString()
     }
 

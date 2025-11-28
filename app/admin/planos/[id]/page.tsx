@@ -7,6 +7,7 @@ import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { ArrowLeft, Save } from 'lucide-react';
+import { formatDateTimeBR } from '@/lib/utils/date';
 
 interface Plano {
   id: string;
@@ -344,7 +345,7 @@ export default function EditarPlanoPage({ params }: EditarPlanoPageProps) {
           {plano && (
             <Card className="bg-blue-50 border-blue-200 p-3">
               <p className="text-sm text-blue-800">
-                ℹ️ Criado em {new Date(plano.created_at).toLocaleString('pt-BR')}
+                ℹ️ Criado em {formatDateTimeBR(plano.created_at)}
               </p>
             </Card>
           )}

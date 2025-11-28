@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Plus, Edit, Trash2, DollarSign } from 'lucide-react';
+import { formatDateOnlyBR } from '@/lib/utils/date';
 
 interface Plano {
   id: string;
@@ -213,7 +214,7 @@ export default function PlanosPage() {
 
               {/* Data de Criação */}
               <p className="text-xs text-gray-400 mt-3 text-center">
-                Criado em {new Date(plano.created_at).toLocaleDateString('pt-BR')}
+                Criado em {formatDateOnlyBR(plano.created_at)}
               </p>
             </Card>
           ))}

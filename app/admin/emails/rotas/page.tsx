@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { Send, Clock, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react'
+import { formatDateTimeBR } from '@/lib/utils/date'
 
 interface RotaInfo {
   id: string
   nome: string
   descricao: string
   endpoint: string
-  metodo: 'POST'
+  metodo: 'POST' | 'GET'
   body?: any
   frequencia?: string
 }
@@ -61,6 +62,14 @@ const rotas: RotaInfo[] = [
     endpoint: '/api/admin/emails/processar-campanhas-vencendo',
     metodo: 'POST',
     frequencia: 'Diariamente (recomendado: 1x por dia, de manhã)'
+  },
+  {
+    id: 'diagnostico-campanhas-vencendo',
+    nome: 'Diagnóstico: Campanhas Vencendo',
+    descricao: 'Diagnóstico para verificar campanhas que deveriam estar vencendo hoje ou amanhã e por que não estão sendo adicionadas à fila.',
+    endpoint: '/api/admin/emails/diagnostico-campanhas-vencendo',
+    metodo: 'GET',
+    frequencia: 'Uso manual para diagnóstico'
   }
 ]
 
@@ -100,13 +109,21 @@ export default function RotasEmailsPage() {
       }
       // Rota enviar-vencimento não precisa de input, apenas executa
 
-      const response = await fetch(rota.endpoint, {
+      const fetchOptions: RequestInit = {
         method: rota.metodo,
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: Object.keys(body).length > 0 ? JSON.stringify(body) : '{}'
-      })
+        }
+      }
+
+      // Apenas adicionar body se for POST e tiver dados
+      if (rota.metodo === 'POST' && Object.keys(body).length > 0) {
+        fetchOptions.body = JSON.stringify(body)
+      } else if (rota.metodo === 'POST') {
+        fetchOptions.body = '{}'
+      }
+
+      const response = await fetch(rota.endpoint, fetchOptions)
 
       const data = await response.json()
 
@@ -227,7 +244,7 @@ export default function RotasEmailsPage() {
                             {resultado.success ? 'Executado com sucesso' : 'Erro na execução'}
                           </p>
                           <p className="text-xs text-gray-500 mt-1">
-                            {new Date(resultado.timestamp).toLocaleString('pt-BR')}
+                            {formatDateTimeBR(resultado.timestamp)}
                           </p>
                           <pre className="mt-2 text-xs overflow-x-auto">
                             {JSON.stringify(resultado.data || resultado.error, null, 2)}

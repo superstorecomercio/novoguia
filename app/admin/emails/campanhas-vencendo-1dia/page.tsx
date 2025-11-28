@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { getSupabase } from '@/lib/supabaseClient'
 import { CheckCircle2, Clock, AlertTriangle, XCircle, Mail, RefreshCw, Send, Search, Calendar, Eye } from 'lucide-react'
-import { formatDateTimeBR } from '@/lib/utils/date'
+import { formatDateTimeBR, formatDateOnlyBR } from '@/lib/utils/date'
 
 interface EmailCampanha {
   id: string
@@ -295,7 +295,7 @@ export default function EmailsCampanhasVencendo1DiaPage() {
                         {email.campanha_data_fim ? (
                           <div className="flex items-center gap-2 text-sm text-gray-900">
                             <Calendar className="w-4 h-4 text-orange-500" />
-                            {new Date(email.campanha_data_fim).toLocaleDateString('pt-BR')}
+                            {formatDateOnlyBR(email.campanha_data_fim)}
                           </div>
                         ) : (
                           <span className="text-gray-400 text-sm">-</span>
