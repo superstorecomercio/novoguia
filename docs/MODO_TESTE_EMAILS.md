@@ -153,3 +153,4 @@ Verifique:
 - Limpe os logs periodicamente para melhor performance
 
 
+
