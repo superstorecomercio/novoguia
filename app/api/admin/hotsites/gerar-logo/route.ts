@@ -78,11 +78,18 @@ Logo design requirements:
       n: 1, // Apenas uma imagem
     });
 
+    if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
+      return NextResponse.json(
+        { error: 'Não foi possível gerar o logo - resposta inválida da API' },
+        { status: 500 }
+      );
+    }
+
     const imageUrl = response.data[0]?.url;
 
     if (!imageUrl) {
       return NextResponse.json(
-        { error: 'Não foi possível gerar o logo' },
+        { error: 'Não foi possível gerar o logo - URL não encontrada' },
         { status: 500 }
       );
     }
