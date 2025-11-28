@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/app/components/ui/button"
 import { Input } from "@/app/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card"
@@ -9,7 +9,7 @@ import { Truck, Mail, Lock, Loader2, Shield } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { InstallPrompt } from "@/app/components/painel/InstallPrompt"
 
-export default function PainelLoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [code, setCode] = useState("")
@@ -234,6 +234,18 @@ export default function PainelLoginPage() {
 
       <InstallPrompt />
     </div>
+  )
+}
+
+export default function PainelLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
 
